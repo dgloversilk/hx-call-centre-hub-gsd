@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# HX Call Centre Hub
 
-## Getting Started
+Internal task management tool for the Holiday Extras call centre.
 
-First, run the development server:
+## Getting started
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Project structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+  page.js          # Entry point — routing and auth state
+  layout.js        # Root HTML layout
+  globals.css      # Tailwind CSS import
 
-## Learn More
+components/
+  auth/            # Login screen
+  layout/          # Navbar and sidebar
+  ui/              # Reusable components (StatusBadge, StatCard, Tag)
+  dashboard/       # Manager overview dashboard
+  queue/           # Task queue (table, notes panel, analysis)
+  archive/         # Archived tasks view
+  summary/         # Daily summary
+  upload/          # CSV upload wizard
 
-To learn more about Next.js, take a look at the following resources:
+lib/
+  brand.js         # HX brand colours — edit here to update everywhere
+  constants.js     # Status config and mock users
+  seedData.js      # Placeholder data (replace with BigQuery fetch)
+  csvParser.js     # Parses CSV uploads
+  analysis.js      # Column breakdown logic
+  useTaskData.js   # Central state hook for all task data
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Next steps
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Wire up Google Auth (NextAuth.js)
+- Connect BigQuery as a data source
+- Replace seed data in `lib/seedData.js` with real SQL queries
+- Deploy to Vercel
