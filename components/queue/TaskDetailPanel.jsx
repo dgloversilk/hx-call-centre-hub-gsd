@@ -65,7 +65,7 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
   return (
     <div
       className="w-96 flex-shrink-0 flex flex-col min-h-0"
-      style={{ borderLeft: `3px solid ${HX.purple}`, background: "#1E1033" }}
+      style={{ borderLeft: `3px solid ${HX.purple}`, background: "#2D1B5C" }}
     >
       {/* Header — dark purple */}
       <div
@@ -125,7 +125,7 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
               </div>
 
               {/* Fields */}
-              <div style={{ background: "rgba(255,255,255,0.04)" }}>
+              <div style={{ background: "rgba(255,255,255,0.07)" }}>
                 {sectionFields.map((key, i) => {
                   const val = formatValue(key, task[key]);
                   return (
@@ -185,7 +185,7 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
               {task.notes ? "Edit" : "+ Add"}
             </button>
           </div>
-          <div className="px-3 py-3" style={{ background: "rgba(255,255,255,0.04)" }}>
+          <div className="px-3 py-3" style={{ background: "rgba(255,255,255,0.07)" }}>
             {task.notes
               ? <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "rgba(255,255,255,0.85)" }}>{task.notes}</p>
               : <p className="text-xs italic" style={{ color: "rgba(255,255,255,0.25)" }}>No notes added yet</p>
