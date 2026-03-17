@@ -24,7 +24,7 @@ function groupByRef(tasks) {
   return groups;
 }
 
-export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onArchive }) {
+export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onArchive, onRowClick, selectedTaskId }) {
   const displayCols = queue.displayCols ?? [];
 
   if (tasks.length === 0) {
@@ -72,10 +72,11 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
               return (
                 <tr
                   key={task._id}
-                  style={{ background: groupBg }}
+                  style={{ background: task._id === selectedTaskId ? HX.purplePale : groupBg, cursor: "pointer" }}
                   className="transition-colors"
-                  onMouseEnter={e => { e.currentTarget.style.background = HX.purplePale; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = groupBg; }}
+                  onClick={() => onRowClick?.(task)}
+                  onMouseEnter={e => { if (task._id !== selectedTaskId) e.currentTarget.style.background = HX.purplePale; }}
+                  onMouseLeave={e => { if (task._id !== selectedTaskId) e.currentTarget.style.background = groupBg; }}
                 >
                   {displayCols.map((key, colIdx) => {
                     const val = task[key] ?? "";
