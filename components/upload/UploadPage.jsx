@@ -40,14 +40,15 @@ function splitCsvLine(line) {
 function CsvFlow({ mode, queues, onAddQueue, onImportToQueue, onBack }) {
   const isNew = mode === "new";
 
-  const [file,       setFile]       = useState(null);
-  const [parsed,     setParsed]     = useState(null);
-  const [parseError, setParseError] = useState(null);
-  const [targetId,   setTargetId]   = useState(queues[0]?.id ?? "");
-  const [newName,    setNewName]     = useState("");
-  const [dragging,   setDragging]   = useState(false);
-  const [done,       setDone]       = useState(false);
-  const [imported,   setImported]   = useState(0);
+  const [file,        setFile]        = useState(null);
+  const [parsed,      setParsed]      = useState(null);
+  const [parseError,  setParseError]  = useState(null);
+  const [targetId,    setTargetId]    = useState(queues[0]?.id ?? "");
+  const [newName,     setNewName]     = useState("");
+  const [primaryKey,  setPrimaryKey]  = useState("");   // which column is the main identifier
+  const [dragging,    setDragging]    = useState(false);
+  const [done,        setDone]        = useState(false);
+  const [imported,    setImported]    = useState(0);
   const inputRef = useRef();
 
   const handleFile = useCallback((f) => {
@@ -56,7 +57,12 @@ function CsvFlow({ mode, queues, onAddQueue, onImportToQueue, onBack }) {
     if (isNew) setNewName(f.name.replace(/\.csv$/i, "").replace(/_/g, " "));
     const reader = new FileReader();
     reader.onload = (e) => {
-      try { const rows = parseCsv(e.target.result); setParsed({ headers: Object.keys(rows[0] ?? {}), rows }); }
+      try {
+        const rows = parseCsv(e.target.result);
+        const headers = Object.keys(rows[0] ?? {});
+        setParsed({ headers, rows });
+        setPrimaryKey(headers[0] ?? ""); // default to first column
+      }
       catch (err) { setParseError(err.message); }
     };
     reader.readAsText(f);
@@ -73,10 +79,12 @@ function CsvFlow({ mode, queues, onAddQueue, onImportToQueue, onBack }) {
     const ts = Date.now();
     if (isNew) {
       const id = `csv_${ts}`;
+      const cols = Object.keys(parsed.rows[0] ?? {});
       onAddQueue({
         id, name: newName.trim() || file.name.replace(/\.csv$/i, ""), icon: "📋",
         description: `Uploaded from ${file.name}`, source: "csv", schedule: "Manual upload",
-        displayCols: Object.keys(parsed.rows[0] ?? {}),
+        displayCols: cols,
+        primaryKey: primaryKey || cols[0],
         initialData: parsed.rows.map((r, i) => ({ _id: `${id}_${i}`, ...r, ...TASK_DEFAULTS })),
       });
     } else {
@@ -180,13 +188,45 @@ function CsvFlow({ mode, queues, onAddQueue, onImportToQueue, onBack }) {
 
             {/* Config: name (new) or target queue (existing) */}
             {isNew ? (
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1.5">Task type name</label>
-                <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. Refunds — March 2026"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none"
-                  onFocus={e => { e.currentTarget.style.borderColor = HX.purple; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = "#E5E7EB"; }} />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1.5">Task type name</label>
+                  <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+                    placeholder="e.g. Refunds — March 2026"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none"
+                    onFocus={e => { e.currentTarget.style.borderColor = HX.purple; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = "#E5E7EB"; }} />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Primary display field</label>
+                  <p className="text-xs text-gray-400 mb-1.5">
+                    This field is shown as the task title when you click a row. Choose the best identifier — e.g. email, booking reference, order ID.
+                  </p>
+                  <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(parsed.headers.length, 3)}, 1fr)` }}>
+                    {parsed.headers.map(h => {
+                      const sample = parsed.rows[0]?.[h] ?? "";
+                      const active = primaryKey === h;
+                      return (
+                        <button
+                          key={h}
+                          type="button"
+                          onClick={() => setPrimaryKey(h)}
+                          className="text-left px-3 py-2.5 rounded-lg border text-sm transition-colors"
+                          style={active
+                            ? { background: HX.purplePale, borderColor: HX.purple, color: HX.purple }
+                            : { background: "white", borderColor: "#E5E7EB", color: "#374151" }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.borderColor = HX.purpleLight; }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.borderColor = "#E5E7EB"; }}
+                        >
+                          <div className="font-semibold text-xs uppercase tracking-wide truncate"
+                            style={{ color: active ? HX.purple : "#6B7280" }}>{h}</div>
+                          <div className="text-xs mt-0.5 truncate opacity-70">{sample || "—"}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             ) : (
               <div>

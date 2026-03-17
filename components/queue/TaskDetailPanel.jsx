@@ -109,10 +109,11 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
     return [...declared, ...extra];
   })();
 
-  // Friendly title for the header — first displayCol value, or _id
+  // Friendly title for the header — primaryKey field (chosen at upload),
+  // falling back to first displayCol, then internal _id
   const headerTitle = isBigQuery
     ? (task.chips_reference ?? task._id)
-    : (task[(queue.displayCols ?? [])[0]] ?? task._id);
+    : (task[queue.primaryKey] ?? task[(queue.displayCols ?? [])[0]] ?? task._id);
 
   return (
     <div
