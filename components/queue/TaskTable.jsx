@@ -55,7 +55,6 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
             ))}
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Archive</th>
           </tr>
         </thead>
 
@@ -156,19 +155,6 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
                     </button>
                   </td>
 
-                  {/* Archive button */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={isFirstInGroup && isMulti ? { borderTop: `2px solid ${HX.purpleLight}` } : {}}
-                  >
-                    <button
-                      onClick={() => onArchive(task._id)}
-                      title="Archive this task"
-                      className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                    >
-                      📦
-                    </button>
-                  </td>
                 </tr>
               );
             });
