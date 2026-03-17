@@ -34,10 +34,12 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
   const errorDate = (t) => (t.error_time ?? "").slice(0, 10) || null;
 
   const s = useMemo(() => ({
-    outstanding:    allTasks.filter(t => !t.archived).length,
-    addedYesterday: allTasks.filter(t => errorDate(t) === yesterday).length,
-    doneToday:      allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length,
-    needsAttention: allTasks.filter(t => !t.archived && (t.status === "blocked" || t.status === "escalated")).length,
+    outstanding:       allTasks.filter(t => !t.archived).length,
+    needsAttention:    allTasks.filter(t => !t.archived && (t.status === "blocked" || t.status === "escalated")).length,
+    addedToday:        allTasks.filter(t => errorDate(t) === today).length,
+    completedToday:    allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length,
+    addedYesterday:    allTasks.filter(t => errorDate(t) === yesterday).length,
+    completedYesterday:allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === yesterday).length,
   }), [allTasks, allArchived, today, yesterday]);
 
   // Stacked bar: tasks by error_date, stacked by queue
@@ -78,12 +80,14 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
         </button>
       </div>
 
-      {/* 4 stat cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="Outstanding"     value={s.outstanding}    sub="active tasks remaining"   accent="purple" />
-        <StatCard label="Added Yesterday" value={s.addedYesterday} sub="errors logged yesterday"  accent="blue"   />
-        <StatCard label="Done Today"      value={s.doneToday}      sub="completed today"          accent="green"  />
-        <StatCard label="Needs Attention" value={s.needsAttention} sub="blocked or escalated"     accent="red"    />
+      {/* 6 stat cards */}
+      <div className="grid grid-cols-6 gap-4 mb-6">
+        <StatCard label="Outstanding"        value={s.outstanding}        sub="active tasks remaining"  accent="purple" />
+        <StatCard label="Needs Attention"    value={s.needsAttention}     sub="blocked or escalated"    accent="red"    />
+        <StatCard label="Added Today"        value={s.addedToday}         sub="errors logged today"     accent="blue"   />
+        <StatCard label="Completed Today"    value={s.completedToday}     sub="completed today"         accent="green"  />
+        <StatCard label="Added Yesterday"    value={s.addedYesterday}     sub="errors logged yesterday" accent="blue"   />
+        <StatCard label="Completed Yesterday"value={s.completedYesterday} sub="completed yesterday"     accent="green"  />
       </div>
 
       {/* Stacked bar: errors by date, split by queue */}
