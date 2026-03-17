@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { HX } from "@/lib/brand";
 import TaskTable    from "./TaskTable";
 import NotesPanel   from "./NotesPanel";
@@ -28,6 +28,47 @@ export default function QueueView({
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab,          setTab]          = useState("work");
   const [notesTask,    setNotesTask]    = useState(null);
+  const [showColPicker, setShowColPicker] = useState(false);
+  const colPickerRef = useRef(null);
+
+  // All available display columns from the queue definition
+  const allDisplayCols = queue.displayCols ?? [];
+
+  // Column visibility — load from localStorage, default all on
+  const storageKey = `col_visibility_${queue.id}`;
+  const [visibleCols, setVisibleCols] = useState(() => {
+    try {
+      const saved = typeof window !== "undefined" && localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Only keep cols that still exist in allDisplayCols
+        return allDisplayCols.filter(c => parsed.includes(c));
+      }
+    } catch {}
+    return allDisplayCols;
+  });
+
+  // Sync to localStorage whenever visibleCols changes
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(visibleCols)); } catch {}
+  }, [visibleCols, storageKey]);
+
+  // Close col picker on outside click
+  useEffect(() => {
+    function handler(e) {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target)) {
+        setShowColPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggleCol = (col) => {
+    setVisibleCols(prev =>
+      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
+    );
+  };
 
   // Active (non-archived) tasks
   const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks]);
@@ -57,6 +98,9 @@ export default function QueueView({
 
   const taskRef = t => t.chips_reference ?? t.ref ?? t._id;
 
+  // Queue with only visible cols passed to TaskTable
+  const queueWithVisibleCols = { ...queue, displayCols: visibleCols };
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Header */}
@@ -73,22 +117,96 @@ export default function QueueView({
             </p>
           </div>
 
-          {/* Tab switcher */}
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1 text-sm">
-            {TABS.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className="px-3 py-1.5 rounded-md font-medium transition-colors relative"
-                style={
-                  tab === t.id
-                    ? { background: "white", color: HX.purple, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
-                    : { color: "#6B7280" }
-                }
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            {/* Column toggle button (work tab only) */}
+            {tab === "work" && (
+              <div className="relative" ref={colPickerRef}>
+                <button
+                  onClick={() => setShowColPicker(v => !v)}
+                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors"
+                  style={
+                    showColPicker
+                      ? { background: HX.purple, color: "white", borderColor: HX.purple }
+                      : { background: "white", color: "#4B5563", borderColor: "#E5E7EB" }
+                  }
+                >
+                  ⚙ Columns
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded-full"
+                    style={{
+                      background: showColPicker ? "rgba(255,255,255,0.2)" : HX.purplePale,
+                      color: showColPicker ? "white" : HX.purple,
+                    }}
+                  >
+                    {visibleCols.length}/{allDisplayCols.length}
+                  </span>
+                </button>
+
+                {showColPicker && (
+                  <div
+                    className="absolute right-0 top-10 z-50 rounded-xl border border-gray-200 shadow-xl p-4 min-w-64"
+                    style={{ background: "white" }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Toggle Columns</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setVisibleCols(allDisplayCols)}
+                          className="text-xs px-2 py-1 rounded border"
+                          style={{ color: HX.purple, borderColor: HX.purpleLight }}
+                        >
+                          All
+                        </button>
+                        <button
+                          onClick={() => setVisibleCols([])}
+                          className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-400"
+                        >
+                          None
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
+                      {allDisplayCols.map(col => (
+                        <label
+                          key={col}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={visibleCols.includes(col)}
+                            onChange={() => toggleCol(col)}
+                            className="rounded"
+                            style={{ accentColor: HX.purple }}
+                          />
+                          <span className="font-mono text-xs text-gray-700">{col.replace(/_/g, " ")}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400 text-center">
+                      Saved automatically
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab switcher */}
+            <div className="flex bg-gray-100 rounded-lg p-1 gap-1 text-sm">
+              {TABS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className="px-3 py-1.5 rounded-md font-medium transition-colors relative"
+                  style={
+                    tab === t.id
+                      ? { background: "white", color: HX.purple, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
+                      : { color: "#6B7280" }
+                  }
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -111,7 +229,6 @@ export default function QueueView({
                 {label} <span className="ml-1 opacity-75 text-xs">{counts[key]}</span>
               </button>
             ))}
-
           </div>
         )}
       </div>
@@ -131,7 +248,7 @@ export default function QueueView({
       {/* Work queue tab */}
       {tab === "work" && !isLoading && (
         <TaskTable
-          queue={queue}
+          queue={queueWithVisibleCols}
           tasks={filtered}
           onUpdateTask={(taskId, updates) => onUpdateTask(queue.id, taskId, updates, user)}
           onOpenNotes={setNotesTask}
