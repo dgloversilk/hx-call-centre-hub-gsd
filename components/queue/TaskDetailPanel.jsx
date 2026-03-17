@@ -104,9 +104,11 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
       {/* Sections */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {SECTIONS.map(section => {
-          const sectionFields = section.fields.filter(f => taskFields.has(f));
+          // Always show all fields in every section — newly created tasks
+          // may be missing keys that seed tasks have, so we render "—" rather
+          // than hiding entire sections.
+          const sectionFields = section.fields;
           const accent = SECTION_ACCENT[section.label];
-          if (sectionFields.length === 0) return null;
 
           return (
             <div

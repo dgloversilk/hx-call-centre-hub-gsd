@@ -55,13 +55,13 @@ export default function QueueView({
     archived:    tasks.filter(t => t.archived).length,
   }), [activeTasks, tasks]);
 
-  // All columns for flat file view
-  const allCols = useMemo(
-    () => tasks.length > 0
-      ? Object.keys(tasks[0]).filter(k => !k.startsWith("_") && k !== "archived")
-      : [],
-    [tasks]
-  );
+  // All columns for flat file view — union across ALL tasks so a manually
+  // created task (with fewer keys than seed rows) doesn't collapse the columns.
+  const allCols = useMemo(() => {
+    const seen = new Set();
+    tasks.forEach(t => Object.keys(t).forEach(k => seen.add(k)));
+    return [...seen].filter(k => !k.startsWith("_") && k !== "archived");
+  }, [tasks]);
 
   const taskRef = t => t.chips_reference ?? t.ref ?? t._id;
   const queueWithKeyCols = { ...queue, displayCols: KEY_COLS };
