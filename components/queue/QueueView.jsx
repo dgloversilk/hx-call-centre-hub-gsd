@@ -19,6 +19,9 @@ const FILTERS = [
   { key: "attention",  label: "⚠ Attention" },
 ];
 
+// Key fields shown in the condensed view
+const KEY_COLS = ["chips_reference", "start_date", "error_type", "supplier", "error_code", "error_message", "error_time"];
+
 export default function QueueView({
   queue, taskData, onUpdateTask, onArchiveTask, onRestoreTask,
   onAddTask, archiveAllCompleted, initialCount, user, isLoading = false,
@@ -28,55 +31,30 @@ export default function QueueView({
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab,          setTab]          = useState("work");
   const [notesTask,    setNotesTask]    = useState(null);
-  const [showColPicker, setShowColPicker] = useState(false);
-  const colPickerRef = useRef(null);
 
-  // All available display columns from the queue definition
-  const allDisplayCols = queue.displayCols ?? [];
-
-  // Column visibility — load from localStorage, default all on
-  const storageKey = `col_visibility_${queue.id}`;
-  const [visibleCols, setVisibleCols] = useState(() => {
-    try {
-      const saved = typeof window !== "undefined" && localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Only keep cols that still exist in allDisplayCols
-        return allDisplayCols.filter(c => parsed.includes(c));
-      }
-    } catch {}
-    return allDisplayCols;
+  // Key / All fields toggle — persisted per queue
+  const colModeKey = `col_mode_${queue.id}`;
+  const [colMode, setColMode] = useState(() => {
+    try { return localStorage.getItem(colModeKey) || "key"; } catch { return "key"; }
   });
-
-  // Sync to localStorage whenever visibleCols changes
-  useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(visibleCols)); } catch {}
-  }, [visibleCols, storageKey]);
-
-  // Close col picker on outside click
-  useEffect(() => {
-    function handler(e) {
-      if (colPickerRef.current && !colPickerRef.current.contains(e.target)) {
-        setShowColPicker(false);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const toggleCol = (col) => {
-    setVisibleCols(prev =>
-      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
-    );
+  const setAndSaveColMode = (m) => {
+    setColMode(m);
+    try { localStorage.setItem(colModeKey, m); } catch {}
   };
+
+  const allDisplayCols = queue.displayCols ?? [];
+  const visibleCols = colMode === "key" ? KEY_COLS : allDisplayCols;
 
   // Active (non-archived) tasks
   const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks]);
 
   const filtered = useMemo(() => {
-    if (statusFilter === "all")       return activeTasks;
-    if (statusFilter === "attention") return activeTasks.filter(t => t.status === "blocked" || t.status === "escalated");
-    return activeTasks.filter(t => t.status === statusFilter);
+    let tasks;
+    if (statusFilter === "all")       tasks = activeTasks;
+    else if (statusFilter === "attention") tasks = activeTasks.filter(t => t.status === "blocked" || t.status === "escalated");
+    else tasks = activeTasks.filter(t => t.status === statusFilter);
+    // Sort by start_date ascending — deal with soonest bookings first
+    return [...tasks].sort((a, b) => (a.start_date ?? "").localeCompare(b.start_date ?? ""));
   }, [activeTasks, statusFilter]);
 
   const counts = useMemo(() => ({
@@ -118,75 +96,23 @@ export default function QueueView({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Column toggle button (work tab only) */}
+            {/* Key / All fields toggle (work tab only) */}
             {tab === "work" && (
-              <div className="relative" ref={colPickerRef}>
-                <button
-                  onClick={() => setShowColPicker(v => !v)}
-                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors"
-                  style={
-                    showColPicker
-                      ? { background: HX.purple, color: "white", borderColor: HX.purple }
-                      : { background: "white", color: "#4B5563", borderColor: "#E5E7EB" }
-                  }
-                >
-                  ⚙ Columns
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded-full"
-                    style={{
-                      background: showColPicker ? "rgba(255,255,255,0.2)" : HX.purplePale,
-                      color: showColPicker ? "white" : HX.purple,
-                    }}
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                {["key", "all"].map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setAndSaveColMode(mode)}
+                    className="px-3 py-1.5 font-medium transition-colors"
+                    style={
+                      colMode === mode
+                        ? { background: HX.purple, color: "white" }
+                        : { background: "white", color: "#6B7280" }
+                    }
                   >
-                    {visibleCols.length}/{allDisplayCols.length}
-                  </span>
-                </button>
-
-                {showColPicker && (
-                  <div
-                    className="absolute right-0 top-10 z-50 rounded-xl border border-gray-200 shadow-xl p-4 min-w-64"
-                    style={{ background: "white" }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Toggle Columns</span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setVisibleCols(allDisplayCols)}
-                          className="text-xs px-2 py-1 rounded border"
-                          style={{ color: HX.purple, borderColor: HX.purpleLight }}
-                        >
-                          All
-                        </button>
-                        <button
-                          onClick={() => setVisibleCols([])}
-                          className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-400"
-                        >
-                          None
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
-                      {allDisplayCols.map(col => (
-                        <label
-                          key={col}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={visibleCols.includes(col)}
-                            onChange={() => toggleCol(col)}
-                            className="rounded"
-                            style={{ accentColor: HX.purple }}
-                          />
-                          <span className="font-mono text-xs text-gray-700">{col.replace(/_/g, " ")}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400 text-center">
-                      Saved automatically
-                    </div>
-                  </div>
-                )}
+                    {mode === "key" ? "Key Fields" : "All Fields"}
+                  </button>
+                ))}
               </div>
             )}
 

@@ -62,7 +62,7 @@ export default function Page() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-      <Navbar user={user} onLogout={handleLogout} />
+      <Navbar user={user} onLogout={handleLogout} queues={queues} taskData={taskData} onPage={setPage} />
 
       <div className="flex flex-1 min-h-0">
         <Sidebar
