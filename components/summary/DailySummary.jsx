@@ -39,22 +39,29 @@ export default function DailySummary({ queues, taskData }) {
     ? new Date(fromDate + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : `${new Date(fromDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} — ${new Date(toDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
+  // Use status_updated_at for in-progress/blocked/escalated tasks,
+  // and completed_at / archived_at for done tasks
+  const taskDate = (t) => t.status_updated_at ?? t.completed_at ?? t.archived_at ?? null;
+
   const updated = useMemo(() =>
     queues.flatMap(q =>
       (taskData[q.id] ?? [])
-        .filter(t => inRange(t.status_updated_at))
+        .filter(t => inRange(taskDate(t)))
         .map(t => ({ ...t, queueName: q.name, queueIcon: q.icon }))
     ),
   [queues, taskData, fromDate, toDate]);
 
-  const completed  = updated.filter(t => t.status === "completed");
+  const completed  = updated.filter(t => t.status === "completed" || t.status === "done");
   const blocked    = updated.filter(t => t.status === "blocked");
   const escalated  = updated.filter(t => t.status === "escalated");
   const inProgress = updated.filter(t => t.status === "in_progress");
 
+  // Agent name falls back to completed_by for done tasks
+  const agentOf = (t) => t.status_updated_by ?? t.completed_by ?? t.archived_by ?? "Unknown";
+
   const byAgent = useMemo(() => {
     const map = {};
-    completed.forEach(t => { const n = t.status_updated_by ?? "Unknown"; map[n] = (map[n] ?? 0) + 1; });
+    completed.forEach(t => { const n = agentOf(t); map[n] = (map[n] ?? 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
   }, [completed]);
 
@@ -178,29 +185,32 @@ export default function DailySummary({ queues, taskData }) {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {[...updated]
-                  .sort((a, b) => new Date(b.status_updated_at) - new Date(a.status_updated_at))
-                  .map((task, idx) => (
-                    <tr key={task._id}
-                      className={idx % 2 === 1 ? "bg-gray-50/60" : ""}
-                      onMouseEnter={e => { e.currentTarget.style.background = HX.purplePale; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 1 ? "#F9FAFB" : ""; }}
-                    >
-                      <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                        {new Date(task.status_updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        {" "}
-                        {new Date(task.status_updated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">
-                        {task.chips_reference ?? task.ref ?? task._id}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 text-sm">
-                        <span className="mr-1">{task.queueIcon}</span>{task.queueName}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 text-sm">{task.status_updated_by ?? "—"}</td>
-                      <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-                      <td className="px-4 py-3 text-gray-500 text-sm max-w-48 truncate">{task.notes || "—"}</td>
-                    </tr>
-                  ))}
+                  .sort((a, b) => new Date(taskDate(b)) - new Date(taskDate(a)))
+                  .map((task, idx) => {
+                    const ts = taskDate(task);
+                    return (
+                      <tr key={task._id}
+                        className={idx % 2 === 1 ? "bg-gray-50/60" : ""}
+                        onMouseEnter={e => { e.currentTarget.style.background = HX.purplePale; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 1 ? "#F9FAFB" : ""; }}
+                      >
+                        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                          {new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          {" "}
+                          {new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-700">
+                          {task.chips_reference ?? task.ref ?? task._id}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 text-sm">
+                          <span className="mr-1">{task.queueIcon}</span>{task.queueName}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 text-sm">{agentOf(task)}</td>
+                        <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
+                        <td className="px-4 py-3 text-gray-500 text-sm max-w-48 truncate">{task.notes || "—"}</td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
