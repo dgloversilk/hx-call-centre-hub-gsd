@@ -135,13 +135,21 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
       <h3 className="font-semibold text-gray-800 mb-3">Queue Summary</h3>
       <div className="grid grid-cols-2 gap-4">
         {queues.map(q => {
-          const allQ     = taskData[q.id] ?? [];
-          const active   = allQ.filter(t => !t.archived);
-          const archived = allQ.filter(t => t.archived).length;
-          const total    = allQ.length;
-          const pct      = total > 0 ? Math.round((archived / total) * 100) : 0;
-          const blocked  = active.filter(t => t.status === "blocked" || t.status === "escalated").length;
-          const doneToday = allQ.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length;
+          const allQ          = taskData[q.id] ?? [];
+          const active        = allQ.filter(t => !t.archived);
+          const total         = allQ.length;
+          const outstanding   = active.length;
+          const addedYest     = allQ.filter(t => (t.error_time ?? "").slice(0, 10) === yesterday).length;
+          const doneYest      = allQ.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === yesterday).length;
+          const needsAttention = active.filter(t => t.status === "blocked" || t.status === "escalated").length;
+
+          // Status strip proportions
+          const pending    = active.filter(t => t.status === "pending").length;
+          const inProgress = active.filter(t => t.status === "in_progress").length;
+          const done       = allQ.filter(t => t.archived).length;
+          const pPct = total > 0 ? (pending / total) * 100 : 0;
+          const iPct = total > 0 ? (inProgress / total) * 100 : 0;
+          const dPct = total > 0 ? (done / total) * 100 : 0;
 
           return (
             <div
@@ -149,14 +157,13 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
               className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => onPage(q.id)}
             >
-              <div className="flex items-start justify-between mb-3">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{q.icon}</span>
                   <div>
                     <div className="font-semibold text-gray-900">{q.name}</div>
-                    <div className="text-xs text-gray-500">
-                      Source: {q.source === "bigquery" ? "BigQuery" : "CSV"} · {q.schedule}
-                    </div>
+                    <div className="text-xs text-gray-500">{q.schedule}</div>
                   </div>
                 </div>
                 <span
@@ -167,29 +174,36 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
                 </span>
               </div>
 
-              <div className="flex gap-5 text-sm mb-3">
-                <div><span className="text-gray-500">Active:</span> <strong>{active.length}</strong></div>
-                <div>
-                  <span className="text-gray-500">Done today:</span>{" "}
-                  <strong style={{ color: HX.green }}>{doneToday}</strong>
+              {/* 4 matching stats */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-gray-900">{outstanding}</div>
+                  <div className="text-xs text-gray-500">Outstanding</div>
                 </div>
-                {blocked > 0 && (
-                  <div>
-                    <span className="text-gray-500">Blocked:</span>{" "}
-                    <strong style={{ color: HX.red }}>{blocked}</strong>
-                  </div>
-                )}
-                <div><span className="text-gray-500">Archived:</span> <strong className="text-gray-400">{archived}</strong></div>
+                <div className="text-center">
+                  <div className="text-lg font-bold" style={{ color: HX.blue }}>{addedYest}</div>
+                  <div className="text-xs text-gray-500">Added Yest.</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold" style={{ color: HX.green }}>{doneYest}</div>
+                  <div className="text-xs text-gray-500">Done Yest.</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold" style={{ color: needsAttention > 0 ? HX.red : HX.gray2 }}>{needsAttention}</div>
+                  <div className="text-xs text-gray-500">Attention</div>
+                </div>
               </div>
 
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: HX.gray3 }}>
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${pct}%`, background: HX.green }}
-                />
+              {/* Status strip: pending | in progress | done */}
+              <div className="h-2 rounded-full overflow-hidden flex" style={{ background: HX.gray3 }}>
+                <div style={{ width: `${pPct}%`, background: HX.gray2 }} />
+                <div style={{ width: `${iPct}%`, background: HX.blue }} />
+                <div style={{ width: `${dPct}%`, background: HX.green }} />
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {pct}% processed · {initialCounts[q.id] ?? total} tasks in original batch
+              <div className="flex gap-3 text-xs text-gray-400 mt-1">
+                <span>{pending} pending</span>
+                <span style={{ color: HX.blue }}>{inProgress} in progress</span>
+                <span style={{ color: HX.green }}>{done} done</span>
               </div>
             </div>
           );
