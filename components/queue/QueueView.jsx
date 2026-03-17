@@ -5,13 +5,11 @@ import { HX } from "@/lib/brand";
 import TaskTable    from "./TaskTable";
 import NotesPanel   from "./NotesPanel";
 import AnalysisPanel from "./AnalysisPanel";
-import ArchiveView  from "@/components/archive/ArchiveView";
 
 const TABS = [
   { id: "work",     label: "🗂 Work Queue" },
   { id: "analysis", label: "📊 Analysis"   },
   { id: "flat",     label: "📋 Flat File"  },
-  { id: "archive",  label: "📦 Archive"    },
 ];
 
 const FILTERS = [
@@ -89,14 +87,6 @@ export default function QueueView({
                 }
               >
                 {t.label}
-                {t.id === "archive" && counts.archived > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-xs flex items-center justify-center font-bold"
-                    style={{ background: HX.purple, fontSize: "9px" }}
-                  >
-                    {counts.archived}
-                  </span>
-                )}
               </button>
             ))}
           </div>
@@ -199,15 +189,6 @@ export default function QueueView({
       {/* Analysis tab */}
       {tab === "analysis" && (
         <AnalysisPanel queue={queue} tasks={activeTasks} initialCount={initialCount} />
-      )}
-
-      {/* Archive tab */}
-      {tab === "archive" && (
-        <ArchiveView
-          tasks={tasks.filter(t => t.archived)}
-          queue={queue}
-          onRestore={taskId => onRestoreTask(queue.id, taskId)}
-        />
       )}
 
       {/* Notes slide-out panel */}
