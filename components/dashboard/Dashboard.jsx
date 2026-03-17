@@ -36,9 +36,9 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
   const s = useMemo(() => ({
     outstanding:    allTasks.filter(t => !t.archived).length,
     addedYesterday: allTasks.filter(t => errorDate(t) === yesterday).length,
-    doneYesterday:  allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === yesterday).length,
+    doneToday:      allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length,
     needsAttention: allTasks.filter(t => !t.archived && (t.status === "blocked" || t.status === "escalated")).length,
-  }), [allTasks, allArchived, yesterday]);
+  }), [allTasks, allArchived, today, yesterday]);
 
   // Stacked bar: tasks by error_date, stacked by queue
   const barData = useMemo(() => {
@@ -82,7 +82,7 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
       <div className="grid grid-cols-4 gap-4 mb-6">
         <StatCard label="Outstanding"     value={s.outstanding}    sub="active tasks remaining"   accent="purple" />
         <StatCard label="Added Yesterday" value={s.addedYesterday} sub="errors logged yesterday"  accent="blue"   />
-        <StatCard label="Done Yesterday"  value={s.doneYesterday}  sub="completed yesterday"      accent="green"  />
+        <StatCard label="Done Today"      value={s.doneToday}      sub="completed today"          accent="green"  />
         <StatCard label="Needs Attention" value={s.needsAttention} sub="blocked or escalated"     accent="red"    />
       </div>
 
@@ -140,7 +140,7 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
           const total         = allQ.length;
           const outstanding   = active.length;
           const addedYest     = allQ.filter(t => (t.error_time ?? "").slice(0, 10) === yesterday).length;
-          const doneYest      = allQ.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === yesterday).length;
+          const doneYest      = allQ.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length;
           const needsAttention = active.filter(t => t.status === "blocked" || t.status === "escalated").length;
 
           // Status strip proportions
@@ -186,7 +186,7 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold" style={{ color: HX.green }}>{doneYest}</div>
-                  <div className="text-xs text-gray-500">Done Yest.</div>
+                  <div className="text-xs text-gray-500">Done Today</div>
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold" style={{ color: needsAttention > 0 ? HX.red : HX.gray2 }}>{needsAttention}</div>
