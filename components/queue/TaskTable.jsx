@@ -7,25 +7,61 @@ import Tag from "@/components/ui/Tag";
 /**
  * Group consecutive tasks by chips_reference so that multiple errors
  * for the same booking are visually clustered.
- *
- * Returns an array of groups: { ref, tasks[] }
  */
 function groupByRef(tasks) {
   const groups = [];
   tasks.forEach(task => {
     const ref = task.chips_reference ?? "";
     const last = groups[groups.length - 1];
-    if (last && last.ref === ref) {
-      last.tasks.push(task);
-    } else {
-      groups.push({ ref, tasks: [task] });
-    }
+    if (last && last.ref === ref) last.tasks.push(task);
+    else groups.push({ ref, tasks: [task] });
   });
   return groups;
 }
 
-export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onArchive, onRowClick, selectedTaskId }) {
+/** Human-readable age string based on error_time or created_at. */
+function ageText(task) {
+  const dateStr = task.error_time ?? task.created_at;
+  if (!dateStr) return null;
+  try {
+    const days = Math.floor((Date.now() - new Date(dateStr)) / 86_400_000);
+    if (days === 0) return "Today";
+    if (days === 1) return "Yesterday";
+    return `${days}d ago`;
+  } catch { return null; }
+}
+
+function AgeCell({ task }) {
+  const text = ageText(task);
+  if (!text) return <span className="text-gray-300 text-xs">—</span>;
+  const color = text === "Today" ? "#D97706"
+    : text === "Yesterday"      ? "#6B7280"
+    : HX.red;
+  return <span className="text-xs font-medium whitespace-nowrap" style={{ color }}>{text}</span>;
+}
+
+function AssignedCell({ name }) {
+  if (!name) return <span className="text-gray-300 text-xs">—</span>;
+  const first = name.split(" ")[0];
+  const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
+      style={{ background: HX.purplePale, color: HX.purple, border: `1px solid ${HX.purpleLight}` }}
+      title={name}
+    >
+      <span className="font-bold">{initials}</span>
+      <span className="hidden lg:inline">{first}</span>
+    </span>
+  );
+}
+
+export default function TaskTable({
+  queue, tasks, onUpdateTask, onOpenNotes, onArchive, onRowClick, selectedTaskId,
+  selectedRows, onSelectRow, onSelectAll, user,
+}) {
   const displayCols = queue.displayCols ?? [];
+  const allSelected = tasks.length > 0 && tasks.every(t => selectedRows?.has(t._id));
 
   if (tasks.length === 0) {
     return (
@@ -37,7 +73,6 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
   }
 
   const groups = groupByRef(tasks);
-  // Alternate shading per group (not per row)
   let groupIndex = 0;
 
   return (
@@ -45,14 +80,25 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
       <table className="w-full text-sm border-collapse min-w-max">
         <thead className="sticky top-0 bg-gray-50 border-b z-10 shadow-sm">
           <tr>
+            {/* Select-all checkbox */}
+            <th className="px-3 py-3 w-8">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() => onSelectAll?.()}
+                className="rounded cursor-pointer"
+                style={{ accentColor: HX.purple }}
+              />
+            </th>
+
             {displayCols.map(key => (
-              <th
-                key={key}
-                className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap"
-              >
+              <th key={key} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                 {key.replace(/_/g, " ")}
               </th>
             ))}
+
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Age</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Retry</th>
@@ -66,36 +112,41 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
             const groupBg = isShaded ? "#F9FAFB" : "";
 
             return group.tasks.map((task, rowIdx) => {
+              const isSelected  = selectedRows?.has(task._id);
+              const isDetailRow = task._id === selectedTaskId;
               const isFirstInGroup = rowIdx === 0;
-              const isLastInGroup = rowIdx === group.tasks.length - 1;
+              const rowBg = isDetailRow ? HX.purplePale
+                : isSelected ? "#EDE9F8"
+                : groupBg;
+              const borderStyle = isFirstInGroup && isMulti ? { borderTop: `2px solid ${HX.purpleLight}` } : {};
 
               return (
                 <tr
                   key={task._id}
-                  style={{ background: task._id === selectedTaskId ? HX.purplePale : groupBg, cursor: "pointer" }}
+                  style={{ background: rowBg, cursor: "pointer" }}
                   className="transition-colors"
                   onClick={() => onRowClick?.(task)}
-                  onMouseEnter={e => { if (task._id !== selectedTaskId) e.currentTarget.style.background = HX.purplePale; }}
-                  onMouseLeave={e => { if (task._id !== selectedTaskId) e.currentTarget.style.background = groupBg; }}
+                  onMouseEnter={e => { if (!isDetailRow && !isSelected) e.currentTarget.style.background = HX.purplePale; }}
+                  onMouseLeave={e => { if (!isDetailRow && !isSelected) e.currentTarget.style.background = rowBg; }}
                 >
-                  {displayCols.map((key, colIdx) => {
+                  {/* Checkbox — stops row-click from toggling */}
+                  <td className="px-3 py-3 w-8" style={borderStyle} onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected ?? false}
+                      onChange={() => onSelectRow?.(task._id)}
+                      className="rounded cursor-pointer"
+                      style={{ accentColor: HX.purple }}
+                    />
+                  </td>
+
+                  {displayCols.map((key) => {
                     const val = task[key] ?? "";
                     const isYesNo = val === "Yes" || val === "No";
                     const isRefCol = key === "chips_reference";
 
                     return (
-                      <td
-                        key={key}
-                        className="px-4 py-3 whitespace-nowrap"
-                        style={
-                          isFirstInGroup && isMulti
-                            ? { borderTop: `2px solid ${HX.purpleLight}` }
-                            : isMulti && isLastInGroup && colIdx === 0
-                            ? {}
-                            : {}
-                        }
-                      >
-                        {/* On the first row of a multi-error group, show ref + error count badge */}
+                      <td key={key} className="px-4 py-3 whitespace-nowrap" style={borderStyle}>
                         {isRefCol && isFirstInGroup && isMulti ? (
                           <span className="flex items-center gap-2">
                             <span className="text-gray-700 text-sm">{val}</span>
@@ -103,12 +154,9 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
                               className="text-xs px-1.5 py-0.5 rounded-full font-bold"
                               style={{ background: HX.purplePale, color: HX.purple, border: `1px solid ${HX.purpleLight}` }}
                               title={`${group.tasks.length} errors for this reference`}
-                            >
-                              ×{group.tasks.length}
-                            </span>
+                            >×{group.tasks.length}</span>
                           </span>
                         ) : isRefCol && !isFirstInGroup ? (
-                          /* Subsequent rows in group: indent to show continuation */
                           <span className="text-gray-300 text-xs pl-2">↳</span>
                         ) : isYesNo ? (
                           <Tag yes={val === "Yes"} />
@@ -123,11 +171,14 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
                     );
                   })}
 
+                  {/* Age */}
+                  <td className="px-4 py-3" style={borderStyle}><AgeCell task={task} /></td>
+
+                  {/* Assigned */}
+                  <td className="px-4 py-3" style={borderStyle}><AssignedCell name={task.assigned_to} /></td>
+
                   {/* Status dropdown */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={isFirstInGroup && isMulti ? { borderTop: `2px solid ${HX.purpleLight}` } : {}}
-                  >
+                  <td className="px-4 py-3 whitespace-nowrap" style={borderStyle} onClick={e => e.stopPropagation()}>
                     <select
                       value={task.status}
                       onChange={e => onUpdateTask(task._id, { status: e.target.value })}
@@ -139,29 +190,22 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
                     </select>
                   </td>
 
-                  {/* Notes button */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={isFirstInGroup && isMulti ? { borderTop: `2px solid ${HX.purpleLight}` } : {}}
-                  >
+                  {/* Notes */}
+                  <td className="px-4 py-3 whitespace-nowrap" style={borderStyle} onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => onOpenNotes(task)}
                       className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
-                      style={
-                        task.notes
-                          ? { borderColor: HX.purpleLight, background: HX.purplePale, color: HX.purple }
-                          : { borderColor: "#E5E7EB", color: "#6B7280" }
+                      style={task.notes
+                        ? { borderColor: HX.purpleLight, background: HX.purplePale, color: HX.purple }
+                        : { borderColor: "#E5E7EB", color: "#6B7280" }
                       }
                     >
                       {task.notes ? "📝 View" : "+ Add"}
                     </button>
                   </td>
 
-                  {/* Retry button */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={isFirstInGroup && isMulti ? { borderTop: `2px solid ${HX.purpleLight}` } : {}}
-                  >
+                  {/* Retry */}
+                  <td className="px-4 py-3 whitespace-nowrap" style={borderStyle} onClick={e => e.stopPropagation()}>
                     <button
                       disabled
                       title="Smart Retry — coming soon"
@@ -171,7 +215,6 @@ export default function TaskTable({ queue, tasks, onUpdateTask, onOpenNotes, onA
                       ↺ Retry
                     </button>
                   </td>
-
                 </tr>
               );
             });

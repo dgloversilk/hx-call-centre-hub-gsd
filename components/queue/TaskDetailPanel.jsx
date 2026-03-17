@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { HX } from "@/lib/brand";
-import { STATUS_CFG } from "@/lib/constants";
+import { STATUS_CFG, OUTCOME_OPTIONS, MOCK_USERS } from "@/lib/constants";
 
 const SKIP = new Set(["_id", "_queueId", "_queueName", "_queueIcon", "_firstCol", "archived", "archived_at", "archived_by", "status_updated_at", "status_updated_by"]);
 
@@ -94,11 +95,55 @@ function FieldRow({ fieldKey, value, label, isFirst }) {
   );
 }
 
-export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
+export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onUpdateTask, user }) {
   if (!task) return null;
 
-  const cfg = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
+  const [showOutcome,  setShowOutcome]  = useState(false);
+  const [showDelegate, setShowDelegate] = useState(false);
+
+  const cfg        = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
   const isBigQuery = queue.source === "bigquery";
+  const isManager  = user?.role === "Manager" || user?.role === "Owner";
+  const myTask     = task.assigned_to === user?.name;
+  const unassigned = !task.assigned_to;
+  const isDone     = task.status === "done" || task.status === "completed";
+
+  // Anyone who can act: unassigned tasks (anyone can claim), my tasks, or managers
+  const canAct = !isDone && (unassigned || myTask || isManager);
+
+  const handleClaim = () => {
+    onUpdateTask?.(task._id, {
+      status:      "in_progress",
+      assigned_to: user?.name,
+      assigned_by: user?.name,
+      assigned_at: new Date().toISOString(),
+    });
+  };
+
+  const handleDelegate = (agentName) => {
+    onUpdateTask?.(task._id, {
+      assigned_to: agentName,
+      assigned_by: user?.name,
+      assigned_at: new Date().toISOString(),
+    });
+    setShowDelegate(false);
+  };
+
+  const handleComplete = (outcome) => {
+    onUpdateTask?.(task._id, {
+      status:             "done",
+      completion_outcome: outcome,
+      completed_by:       user?.name,
+      completed_at:       new Date().toISOString(),
+    });
+    setShowOutcome(false);
+  };
+
+  const handleEscalate = () => onUpdateTask?.(task._id, { status: "escalated" });
+  const handleBlock    = () => onUpdateTask?.(task._id, { status: "blocked"   });
+  const handleResume   = () => onUpdateTask?.(task._id, { status: "in_progress" });
+
+  const agentList = MOCK_USERS.filter(u => u.name !== user?.name);
 
   // For CSV queues: use displayCols order, then append any keys not already listed
   const csvDisplayFields = (() => {
@@ -109,8 +154,6 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
     return [...declared, ...extra];
   })();
 
-  // Friendly title for the header — primaryKey field (chosen at upload),
-  // falling back to first displayCol, then internal _id
   const headerTitle = isBigQuery
     ? (task.chips_reference ?? task._id)
     : (task[queue.primaryKey] ?? task[(queue.displayCols ?? [])[0]] ?? task._id);
@@ -153,6 +196,123 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
           </button>
         </div>
       </div>
+
+      {/* ── Action bar ───────────────────────────────────────────────────── */}
+      {canAct && (
+        <div className="flex-shrink-0 px-4 py-3 space-y-2"
+          style={{ background: "rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+
+          {/* Assigned-to indicator */}
+          {task.assigned_to && (
+            <div className="text-xs mb-1" style={{ color: HX.purpleLight }}>
+              Claimed by <span className="font-semibold text-white">{task.assigned_to}</span>
+              {task.assigned_by && task.assigned_by !== task.assigned_to &&
+                <span> · delegated by {task.assigned_by}</span>}
+            </div>
+          )}
+
+          <div className="flex gap-2 flex-wrap">
+            {/* Claim — unassigned tasks */}
+            {unassigned && (
+              <button onClick={handleClaim}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                style={{ background: HX.purple, color: "white" }}>
+                ✋ Claim task
+              </button>
+            )}
+
+            {/* Start — assigned to me, still pending */}
+            {myTask && task.status === "pending" && (
+              <button onClick={() => onUpdateTask?.(task._id, { status: "in_progress" })}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                style={{ background: HX.blue, color: "white" }}>
+                ▶ Start
+              </button>
+            )}
+
+            {/* Resume — blocked/escalated, mine or manager */}
+            {(myTask || isManager) && (task.status === "blocked" || task.status === "escalated") && (
+              <button onClick={handleResume}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                style={{ background: HX.blue, color: "white" }}>
+                ▶ Resume
+              </button>
+            )}
+
+            {/* Mark complete ▾ — in_progress/blocked/escalated, mine or manager */}
+            {(myTask || isManager) && !["pending","done","completed"].includes(task.status) && (
+              <div className="relative">
+                <button onClick={() => { setShowOutcome(v => !v); setShowDelegate(false); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: HX.green, color: "white" }}>
+                  ✅ Complete ▾
+                </button>
+                {showOutcome && (
+                  <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 min-w-52">
+                    {OUTCOME_OPTIONS.map(o => (
+                      <button key={o.value} onClick={() => handleComplete(o.value)}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                        <span>{o.emoji}</span>{o.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Escalate & Block — in_progress, mine or manager */}
+            {(myTask || isManager) && task.status === "in_progress" && (
+              <>
+                <button onClick={handleEscalate}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: HX.orange, color: "white" }}>
+                  ⬆️ Escalate
+                </button>
+                <button onClick={handleBlock}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: HX.red, color: "white" }}>
+                  🚫 Block
+                </button>
+              </>
+            )}
+
+            {/* Delegate ▾ — managers always see this on non-done tasks */}
+            {isManager && (
+              <div className="relative">
+                <button onClick={() => { setShowDelegate(v => !v); setShowOutcome(false); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-opacity hover:opacity-80"
+                  style={{ borderColor: "rgba(255,255,255,0.3)", color: "rgba(255,255,255,0.8)" }}>
+                  👤 Delegate ▾
+                </button>
+                {showDelegate && (
+                  <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 min-w-44">
+                    {agentList.map(u => (
+                      <button key={u.id} onClick={() => handleDelegate(u.name)}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center text-white shrink-0"
+                          style={{ background: HX.purple }}>{u.initials}</span>
+                        {u.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* completion outcome badge — shown when task is done */}
+      {isDone && task.completion_outcome && (
+        <div className="flex-shrink-0 px-4 py-2 text-xs flex items-center gap-2"
+          style={{ background: "rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+          <span style={{ color: HX.purpleLight }}>Outcome:</span>
+          <span className="font-semibold text-white">
+            {OUTCOME_OPTIONS.find(o => o.value === task.completion_outcome)?.emoji}{" "}
+            {OUTCOME_OPTIONS.find(o => o.value === task.completion_outcome)?.label ?? task.completion_outcome}
+          </span>
+        </div>
+      )}
 
       {/* Sections */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
