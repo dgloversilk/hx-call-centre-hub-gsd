@@ -44,7 +44,11 @@ const SECTION_ACCENT = {
   Supplier: { bg: HX.bluePale,    label: HX.blue,       border: HX.blueLight  },
   Agent:    { bg: HX.yellowLight, label: "#7A6200",     border: HX.yellowDark },
   Resolved: { bg: HX.greenPale,   label: HX.greenDark,  border: HX.greenLight },
+  Other:    { bg: "rgba(255,255,255,0.08)", label: "rgba(255,255,255,0.5)", border: "rgba(255,255,255,0.15)" },
 };
+
+// All fields that belong to a known section — anything else goes in "Other"
+const KNOWN_FIELDS = new Set(SECTIONS.flatMap(s => s.fields));
 
 function formatValue(key, val) {
   if (!val && val !== 0) return null;
@@ -61,6 +65,10 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
 
   const cfg = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
   const taskFields = new Set(Object.keys(task).filter(k => !SKIP.has(k) && k !== "status" && k !== "notes"));
+
+  // Any task field not in a known section goes into the "Other" catch-all.
+  // This covers CSV uploads with different column names.
+  const otherFields = [...taskFields].filter(k => !KNOWN_FIELDS.has(k) && task[k] !== null && task[k] !== "" && task[k] !== undefined);
 
   return (
     <div
@@ -166,6 +174,36 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
             </div>
           );
         })}
+
+        {/* Other — catch-all for non-standard columns (e.g. from different CSV uploads) */}
+        {otherFields.length > 0 && (() => {
+          const accent = SECTION_ACCENT.Other;
+          return (
+            <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${accent.border}` }}>
+              <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
+                style={{ background: accent.bg, color: accent.label, borderBottom: `1px solid ${accent.border}` }}>
+                Other
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.07)" }}>
+                {otherFields.map((key, i) => {
+                  const val = formatValue(key, task[key]);
+                  return (
+                    <div key={key} className="px-3 py-2.5"
+                      style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                      <div className="text-xs font-semibold mb-0.5" style={{ color: HX.purpleLight }}>
+                        {key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                      </div>
+                      {val
+                        ? <div className="text-sm break-words leading-snug" style={{ color: "rgba(255,255,255,0.9)" }}>{val}</div>
+                        : <div className="text-xs italic" style={{ color: "rgba(255,255,255,0.2)" }}>—</div>
+                      }
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Notes section */}
         <div
