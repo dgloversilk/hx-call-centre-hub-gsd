@@ -64,7 +64,11 @@ export default function QueueView({
   }, [tasks]);
 
   const taskRef = t => t.chips_reference ?? t.ref ?? t._id;
-  const queueWithKeyCols = { ...queue, displayCols: KEY_COLS };
+  // BigQuery queues use the fixed KEY_COLS shortlist; CSV-uploaded queues
+  // use whatever columns came from their file.
+  const queueWithKeyCols = queue.source === "bigquery"
+    ? { ...queue, displayCols: KEY_COLS }
+    : queue;
 
   const handleRowClick = (task) => {
     setDetailTask(prev => prev?._id === task._id ? null : task);
