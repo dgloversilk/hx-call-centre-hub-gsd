@@ -60,15 +60,59 @@ function formatValue(key, val) {
   return String(val);
 }
 
+// Render a single field row (shared between BQ sections and CSV flat view)
+function FieldRow({ fieldKey, value, label, isFirst }) {
+  const val = formatValue(fieldKey, value);
+  return (
+    <div
+      className="px-3 py-2.5"
+      style={{ borderTop: isFirst ? "none" : "1px solid rgba(255,255,255,0.06)" }}
+    >
+      <div className="text-xs font-semibold mb-0.5" style={{ color: HX.purpleLight }}>
+        {label ?? fieldKey.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+      </div>
+      {val ? (
+        <div
+          className={`text-sm break-words leading-snug ${
+            fieldKey === "error_code" || fieldKey === "booking_action" || fieldKey === "chips_reference"
+              ? "font-mono" : ""
+          }`}
+          style={{
+            color: fieldKey === "error_code" || fieldKey === "error_message" || fieldKey === "error_info"
+              ? HX.redLight
+              : fieldKey === "chips_reference"
+              ? HX.yellow
+              : "rgba(255,255,255,0.9)",
+          }}
+        >
+          {val}
+        </div>
+      ) : (
+        <div className="text-xs italic" style={{ color: "rgba(255,255,255,0.2)" }}>—</div>
+      )}
+    </div>
+  );
+}
+
 export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
   if (!task) return null;
 
   const cfg = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
-  const taskFields = new Set(Object.keys(task).filter(k => !SKIP.has(k) && k !== "status" && k !== "notes"));
+  const isBigQuery = queue.source === "bigquery";
 
-  // Any task field not in a known section goes into the "Other" catch-all.
-  // This covers CSV uploads with different column names.
-  const otherFields = [...taskFields].filter(k => !KNOWN_FIELDS.has(k) && task[k] !== null && task[k] !== "" && task[k] !== undefined);
+  // For CSV queues: use displayCols order, then append any keys not already listed
+  const csvDisplayFields = (() => {
+    if (isBigQuery) return [];
+    const skipSet = new Set([...SKIP, "status", "notes"]);
+    const declared = (queue.displayCols ?? []).filter(k => !skipSet.has(k));
+    const extra = Object.keys(task).filter(k => !skipSet.has(k) && !declared.includes(k) && k !== "status" && k !== "notes");
+    return [...declared, ...extra];
+  })();
+
+  // Friendly title for the header — first displayCol value, or _id
+  const headerTitle = isBigQuery
+    ? (task.chips_reference ?? task._id)
+    : (task[(queue.displayCols ?? [])[0]] ?? task._id);
 
   return (
     <div
@@ -87,10 +131,10 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
               <span className="text-xs font-medium" style={{ color: HX.purpleLight }}>{queue.name}</span>
             </div>
             <div
-              className="font-bold font-mono text-lg mb-3 px-2 py-1 rounded"
+              className="font-bold font-mono text-lg mb-3 px-2 py-1 rounded truncate"
               style={{ color: HX.yellow, background: "rgba(253,213,6,0.1)", border: `1px solid rgba(253,213,6,0.3)` }}
             >
-              {task.chips_reference ?? task._id}
+              {headerTitle}
             </div>
             <span
               className="inline-block px-3 py-1 rounded-full text-xs font-bold border"
@@ -111,99 +155,43 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes }) {
 
       {/* Sections */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {SECTIONS.map(section => {
-          // Always show all fields in every section — newly created tasks
-          // may be missing keys that seed tasks have, so we render "—" rather
-          // than hiding entire sections.
-          const sectionFields = section.fields;
-          const accent = SECTION_ACCENT[section.label];
 
-          return (
-            <div
-              key={section.label}
-              className="rounded-lg overflow-hidden"
-              style={{ border: `1px solid ${accent.border}` }}
-            >
-              {/* Section header */}
-              <div
-                className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
-                style={{ background: accent.bg, color: accent.label, borderBottom: `1px solid ${accent.border}` }}
-              >
-                {section.label}
-              </div>
-
-              {/* Fields */}
-              <div style={{ background: "rgba(255,255,255,0.07)" }}>
-                {sectionFields.map((key, i) => {
-                  const val = formatValue(key, task[key]);
-                  return (
-                    <div
-                      key={key}
-                      className="px-3 py-2.5"
-                      style={{
-                        borderTop: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                      }}
-                    >
-                      <div className="text-xs font-semibold mb-0.5" style={{ color: HX.purpleLight }}>
-                        {LABELS[key] ?? key.replace(/_/g, " ")}
-                      </div>
-                      {val ? (
-                        <div
-                          className={`text-sm break-words leading-snug ${
-                            key === "error_code" || key === "booking_action" || key === "chips_reference"
-                              ? "font-mono"
-                              : ""
-                          }`}
-                          style={{
-                            color: key === "error_code" || key === "error_message" || key === "error_info"
-                              ? HX.redLight
-                              : key === "chips_reference"
-                              ? HX.yellow
-                              : "rgba(255,255,255,0.9)",
-                          }}
-                        >
-                          {val}
-                        </div>
-                      ) : (
-                        <div className="text-xs italic" style={{ color: "rgba(255,255,255,0.2)" }}>—</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+        {isBigQuery ? (
+          // ── BigQuery failed-gateway layout: hardcoded sections ──────────
+          <>
+            {SECTIONS.map(section => {
+              const accent = SECTION_ACCENT[section.label];
+              return (
+                <div key={section.label} className="rounded-lg overflow-hidden"
+                  style={{ border: `1px solid ${accent.border}` }}>
+                  <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
+                    style={{ background: accent.bg, color: accent.label, borderBottom: `1px solid ${accent.border}` }}>
+                    {section.label}
+                  </div>
+                  <div style={{ background: "rgba(255,255,255,0.07)" }}>
+                    {section.fields.map((key, i) => (
+                      <FieldRow key={key} fieldKey={key} value={task[key]} label={LABELS[key]} isFirst={i === 0} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          // ── CSV queue layout: flat list using the file's own columns ────
+          <div className="rounded-lg overflow-hidden"
+            style={{ border: `1px solid ${SECTION_ACCENT.Other.border}` }}>
+            <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
+              style={{ background: SECTION_ACCENT.Other.bg, color: SECTION_ACCENT.Other.label, borderBottom: `1px solid ${SECTION_ACCENT.Other.border}` }}>
+              Details
             </div>
-          );
-        })}
-
-        {/* Other — catch-all for non-standard columns (e.g. from different CSV uploads) */}
-        {otherFields.length > 0 && (() => {
-          const accent = SECTION_ACCENT.Other;
-          return (
-            <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${accent.border}` }}>
-              <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
-                style={{ background: accent.bg, color: accent.label, borderBottom: `1px solid ${accent.border}` }}>
-                Other
-              </div>
-              <div style={{ background: "rgba(255,255,255,0.07)" }}>
-                {otherFields.map((key, i) => {
-                  const val = formatValue(key, task[key]);
-                  return (
-                    <div key={key} className="px-3 py-2.5"
-                      style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                      <div className="text-xs font-semibold mb-0.5" style={{ color: HX.purpleLight }}>
-                        {key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
-                      </div>
-                      {val
-                        ? <div className="text-sm break-words leading-snug" style={{ color: "rgba(255,255,255,0.9)" }}>{val}</div>
-                        : <div className="text-xs italic" style={{ color: "rgba(255,255,255,0.2)" }}>—</div>
-                      }
-                    </div>
-                  );
-                })}
-              </div>
+            <div style={{ background: "rgba(255,255,255,0.07)" }}>
+              {csvDisplayFields.map((key, i) => (
+                <FieldRow key={key} fieldKey={key} value={task[key]} isFirst={i === 0} />
+              ))}
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {/* Notes section */}
         <div
