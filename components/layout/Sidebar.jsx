@@ -201,6 +201,30 @@ export default function Sidebar({ queues, taskData, page, onPage, user, loadingQ
       </div>
 
 
+      {/* ── Archive ─────────────────────────────────────────────────────── */}
+      <div className="px-4 py-3 border-t border-gray-700">
+        <button
+          onClick={() => onPage("archive")}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          style={page === "archive" ? { background: HX.purple, color: "white" } : { color: "#D1D5DB" }}
+          onMouseEnter={e => { if (page !== "archive") e.currentTarget.style.background = "#1F2937"; }}
+          onMouseLeave={e => { if (page !== "archive") e.currentTarget.style.background = ""; }}
+        >
+          <span>📦</span>
+          <span className="flex-1 text-left truncate">Archive</span>
+          {grand.archived > 0 && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-semibold"
+              style={page === "archive"
+                ? { background: "rgba(255,255,255,0.25)", color: "white" }
+                : { background: HX.purplePale, color: HX.purple }}
+            >
+              {grand.archived}
+            </span>
+          )}
+        </button>
+      </div>
+
       <div className="px-4 py-2 border-t border-gray-700 text-xs text-gray-600">
         Last sync: Today 09:00
       </div>
