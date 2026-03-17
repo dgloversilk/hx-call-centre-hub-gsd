@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { HX } from "@/lib/brand";
-import { OUTCOME_OPTIONS, MOCK_USERS } from "@/lib/constants";
+import { OUTCOME_OPTIONS, MOCK_USERS, isManager } from "@/lib/constants";
 import TaskTable      from "./TaskTable";
 import NotesPanel     from "./NotesPanel";
 import AnalysisPanel  from "./AnalysisPanel";
@@ -15,30 +15,44 @@ const TABS = [
 ];
 
 const FILTERS = [
-  { key: "all",         label: "All"         },
-  { key: "mine",        label: "👤 Mine"     },
-  { key: "pending",     label: "Pending"     },
-  { key: "in_progress", label: "In Progress" },
-  { key: "attention",   label: "⚠ Attention" },
+  { key: "all",         label: "All",           color: "#4B5563", bg: "#F3F4F6" },
+  { key: "mine",        label: "👤 Mine",       color: "#5B21B6", bg: "#EDE9F8" },
+  { key: "pending",     label: "Pending",       color: "#4B5563", bg: "#F3F4F6" },
+  { key: "in_progress", label: "In Progress",   color: "#1D4ED8", bg: "#DBEAFE" },
+  { key: "attention",   label: "⚠ Attention",   color: "#B91C1C", bg: "#FEE2E2" },
 ];
 
 // Key fields shown in the work queue table for BigQuery queues
 const KEY_COLS = ["chips_reference", "start_date", "error_type", "supplier", "booking_action", "error_code", "error_message", "error_time"];
 
+const toFieldKey = (label) =>
+  label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
 export default function QueueView({
   queue, taskData, onUpdateTask, onArchiveTask, onRestoreTask,
-  onAddTask, archiveAllCompleted, initialCount, user, isLoading = false,
+  onAddTask, onAddCustomField, archiveAllCompleted, initialCount, user, isLoading = false,
 }) {
-  const tasks = taskData[queue.id] ?? [];
-  const isManager = user?.role === "Manager" || user?.role === "Owner";
+  const tasks   = taskData[queue.id] ?? [];
+  const manager = isManager(user);
 
-  const [statusFilter,     setStatusFilter]     = useState("all");
-  const [tab,              setTab]              = useState("work");
-  const [notesTask,        setNotesTask]        = useState(null);
-  const [detailTask,       setDetailTask]       = useState(null);
-  const [selectedRows,     setSelectedRows]     = useState(new Set());
-  const [bulkDelegate,     setBulkDelegate]     = useState(false);
-  const [bulkOutcome,      setBulkOutcome]      = useState(false);
+  const [statusFilter,  setStatusFilter]  = useState("all");
+  const [tab,           setTab]           = useState("work");
+  const [notesTask,     setNotesTask]     = useState(null);
+  const [detailTask,    setDetailTask]    = useState(null);
+  const [selectMode,    setSelectMode]    = useState(false);
+  const [selectedRows,  setSelectedRows]  = useState(new Set());
+  const [bulkDelegate,  setBulkDelegate]  = useState(false);
+  const [bulkOutcome,   setBulkOutcome]   = useState(false);
+  const [addingField,   setAddingField]   = useState(false);
+  const [fieldLabel,    setFieldLabel]    = useState("");
+  const [fieldType,     setFieldType]     = useState("yesno");
+
+  // Clear detail panel, selection and select mode when switching queues
+  useEffect(() => {
+    setDetailTask(null);
+    setSelectedRows(new Set());
+    setSelectMode(false);
+  }, [queue.id]);
 
   // Active (non-archived) tasks
   const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks]);
@@ -47,6 +61,7 @@ export default function QueueView({
     let t;
     if (statusFilter === "all")            t = activeTasks;
     else if (statusFilter === "mine")      t = activeTasks.filter(t => t.assigned_to === user?.name);
+    else if (statusFilter === "unassigned") t = activeTasks.filter(t => !t.assigned_to);
     else if (statusFilter === "attention") t = activeTasks.filter(t => t.status === "blocked" || t.status === "escalated");
     else                                   t = activeTasks.filter(t => t.status === statusFilter);
     return [...t].sort((a, b) => (a.start_date ?? "").localeCompare(b.start_date ?? ""));
@@ -55,6 +70,7 @@ export default function QueueView({
   const counts = useMemo(() => ({
     all:         activeTasks.length,
     mine:        activeTasks.filter(t => t.assigned_to === user?.name).length,
+    unassigned:  activeTasks.filter(t => !t.assigned_to).length,
     pending:     activeTasks.filter(t => t.status === "pending").length,
     in_progress: activeTasks.filter(t => t.status === "in_progress").length,
     attention:   activeTasks.filter(t => t.status === "blocked" || t.status === "escalated").length,
@@ -67,10 +83,22 @@ export default function QueueView({
     return [...seen].filter(k => !k.startsWith("_") && k !== "archived");
   }, [tasks]);
 
-  const taskRef = t => t.chips_reference ?? t.ref ?? t._id;
+  const taskRef        = t => t.chips_reference ?? t.ref ?? t._id;
+  const customColKeys  = (queue.customFields ?? []).map(f => f.key);
   const queueWithKeyCols = queue.source === "bigquery"
-    ? { ...queue, displayCols: KEY_COLS }
-    : queue;
+    ? { ...queue, displayCols: [...KEY_COLS, ...customColKeys] }
+    : { ...queue, displayCols: [...(queue.displayCols ?? []), ...customColKeys.filter(k => !(queue.displayCols ?? []).includes(k))] };
+
+  const handleAddField = (e) => {
+    e.preventDefault();
+    const label = fieldLabel.trim();
+    if (!label) return;
+    const key = toFieldKey(label);
+    if ((queue.customFields ?? []).some(f => f.key === key)) return; // no duplicates
+    onAddCustomField?.({ key, label, type: fieldType });
+    setFieldLabel("");
+    setAddingField(false);
+  };
 
   const handleRowClick = (task) => {
     setDetailTask(prev => prev?._id === task._id ? null : task);
@@ -92,41 +120,16 @@ export default function QueueView({
   const updateOne = (taskId, updates) => onUpdateTask(queue.id, taskId, updates, user);
 
   // ── Bulk action handlers ──────────────────────────────────────────────────
-  const handleBulkClaim = () => {
-    [...selectedRows].forEach(id => updateOne(id, {
-      status: "in_progress",
-      assigned_to: user?.name,
-      assigned_by: user?.name,
-      assigned_at: new Date().toISOString(),
-    }));
+  const applyBulk = (updates) => {
+    [...selectedRows].forEach(id => updateOne(id, updates));
     setSelectedRows(new Set());
+    setSelectMode(false);
   };
 
-  const handleBulkDelegate = (agentName) => {
-    [...selectedRows].forEach(id => updateOne(id, {
-      assigned_to: agentName,
-      assigned_by: user?.name,
-      assigned_at: new Date().toISOString(),
-    }));
-    setSelectedRows(new Set());
-    setBulkDelegate(false);
-  };
-
-  const handleBulkEscalate = () => {
-    [...selectedRows].forEach(id => updateOne(id, { status: "escalated" }));
-    setSelectedRows(new Set());
-  };
-
-  const handleBulkComplete = (outcome) => {
-    [...selectedRows].forEach(id => updateOne(id, {
-      status: "done",
-      completion_outcome: outcome,
-      completed_by: user?.name,
-      completed_at: new Date().toISOString(),
-    }));
-    setSelectedRows(new Set());
-    setBulkOutcome(false);
-  };
+  const handleBulkClaim     = () => applyBulk({ status: "in_progress", assigned_to: user?.name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
+  const handleBulkAttention = () => applyBulk({ status: "blocked" });
+  const handleBulkDelegate  = (agentName) => { applyBulk({ assigned_to: agentName, assigned_by: user?.name, assigned_at: new Date().toISOString() }); setBulkDelegate(false); };
+  const handleBulkComplete  = (outcome)   => { applyBulk({ status: "done", completion_outcome: outcome, completed_by: user?.name, completed_at: new Date().toISOString() }); setBulkOutcome(false); };
 
   const agentList = MOCK_USERS.filter(u => u.name !== user?.name);
 
@@ -144,44 +147,204 @@ export default function QueueView({
             </p>
           </div>
 
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1 text-sm">
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className="px-3 py-1.5 rounded-md font-medium transition-colors"
-                style={tab === t.id
-                  ? { background: "white", color: HX.purple, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
-                  : { color: "#6B7280" }}
+          <div className="flex items-center gap-2">
+            {manager && tab === "work" && (
+              <button
+                onClick={() => setAddingField(v => !v)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+                style={addingField
+                  ? { background: HX.purple, color: "white", borderColor: HX.purple }
+                  : { background: "white", color: HX.purple, borderColor: HX.purpleLight }}
               >
-                {t.label}
+                ⊕ Add field
               </button>
-            ))}
+            )}
+            <div className="flex bg-gray-100 rounded-lg p-1 gap-1 text-sm">
+              {TABS.map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className="px-3 py-1.5 rounded-md font-medium transition-colors"
+                  style={tab === t.id
+                    ? { background: "white", color: HX.purple, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
+                    : { color: "#6B7280" }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {tab === "work" && (
           <div className="flex gap-2 flex-wrap text-sm items-center">
-            {FILTERS.map(({ key, label }) => (
+            {FILTERS.map(({ key, label, color, bg }) => (
               <button
                 key={key}
                 onClick={() => setStatusFilter(key)}
-                className="px-3 py-1.5 rounded-lg font-medium transition-colors border"
+                className="px-3 py-1.5 rounded-lg font-medium transition-all border"
                 style={statusFilter === key
-                  ? { background: HX.purple, color: "white", borderColor: HX.purple }
-                  : { background: "white", color: "#4B5563", borderColor: "#E5E7EB" }}
-                onMouseEnter={e => { if (statusFilter !== key) e.currentTarget.style.borderColor = HX.purpleLight; }}
-                onMouseLeave={e => { if (statusFilter !== key) e.currentTarget.style.borderColor = "#E5E7EB"; }}
+                  ? { background: bg, color, borderColor: color }
+                  : { background: bg, color, borderColor: "transparent", opacity: 0.45 }}
+                onMouseEnter={e => { if (statusFilter !== key) e.currentTarget.style.opacity = "0.75"; }}
+                onMouseLeave={e => { if (statusFilter !== key) e.currentTarget.style.opacity = "0.45"; }}
               >
                 {label} <span className="ml-1 opacity-75 text-xs">{counts[key]}</span>
               </button>
             ))}
-            {selectedRows.size > 0 && (
-              <span className="ml-auto text-xs font-medium" style={{ color: HX.purple }}>
-                {selectedRows.size} selected — use bar below to act
-              </span>
+            {isManager(user) && (
+              <button
+                onClick={() => setStatusFilter("unassigned")}
+                className="px-3 py-1.5 rounded-lg font-medium transition-colors border"
+                style={statusFilter === "unassigned"
+                  ? { background: "#DC2626", color: "white", borderColor: "#DC2626" }
+                  : { background: "white", color: "#DC2626", borderColor: "#FECACA" }}
+                onMouseEnter={e => { if (statusFilter !== "unassigned") e.currentTarget.style.borderColor = "#FCA5A5"; }}
+                onMouseLeave={e => { if (statusFilter !== "unassigned") e.currentTarget.style.borderColor = "#FECACA"; }}
+              >
+                ⚡ Unassigned <span className="ml-1 opacity-75 text-xs">{counts.unassigned}</span>
+              </button>
             )}
+
+            <div className="ml-auto flex items-center gap-2">
+              {selectMode && selectedRows.size > 0 && (
+                <span className="text-xs font-medium" style={{ color: HX.purple }}>
+                  {selectedRows.size} selected
+                </span>
+              )}
+              <button
+                onClick={() => { setSelectMode(v => !v); setSelectedRows(new Set()); }}
+                className="px-3 py-1.5 rounded-lg font-medium transition-colors border text-xs"
+                style={selectMode
+                  ? { background: HX.purple, color: "white", borderColor: HX.purple }
+                  : { background: "white", color: "#6B7280", borderColor: "#E5E7EB" }}
+                title="Toggle bulk selection mode"
+              >
+                {selectMode ? "✓ Selecting" : "☐ Select"}
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Add field form — inline, manager only */}
+      {addingField && tab === "work" && (
+        <form
+          onSubmit={handleAddField}
+          className="flex-shrink-0 px-5 py-3 flex items-center gap-3 border-b bg-white"
+        >
+          <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">New field</span>
+          <input
+            autoFocus
+            type="text"
+            placeholder="e.g. Was this booking cancelled?"
+            value={fieldLabel}
+            onChange={e => setFieldLabel(e.target.value)}
+            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none min-w-0"
+            onFocus={e => { e.currentTarget.style.borderColor = HX.purple; }}
+            onBlur={e => { e.currentTarget.style.borderColor = "#E5E7EB"; }}
+          />
+          <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 text-xs flex-shrink-0">
+            {[{ v: "yesno", label: "Yes / No" }, { v: "text", label: "Text" }].map(({ v, label }) => (
+              <button
+                key={v} type="button" onClick={() => setFieldType(v)}
+                className="px-2.5 py-1 rounded-md font-medium transition-colors"
+                style={fieldType === v
+                  ? { background: "white", color: HX.purple, boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
+                  : { color: "#6B7280" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button type="submit" disabled={!fieldLabel.trim()}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-opacity"
+            style={{ background: HX.purple }}>
+            Add
+          </button>
+          <button type="button" onClick={() => { setAddingField(false); setFieldLabel(""); }}
+            className="text-gray-400 hover:text-gray-600 text-sm transition-colors">
+            ✕
+          </button>
+        </form>
+      )}
+
+      {/* Bulk action bar — visible whenever select mode is active */}
+      {selectMode && tab === "work" && (
+        <div
+          className="flex-shrink-0 px-5 py-2.5 flex items-center gap-3 flex-wrap border-b"
+          style={{ background: HX.purple }}
+        >
+          <span className="text-white text-sm font-semibold">
+            {selectedRows.size} task{selectedRows.size > 1 ? "s" : ""} selected
+          </span>
+          <div className="h-4 w-px bg-white opacity-30" />
+
+          {/* Claim for me */}
+          <button
+            onClick={handleBulkClaim}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+          >
+            ✋ Claim for me
+          </button>
+
+          {manager && (
+            <div className="relative">
+              <button
+                onClick={() => { setBulkDelegate(v => !v); setBulkOutcome(false); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+              >
+                👤 Delegate ▾
+              </button>
+              {bulkDelegate && (
+                <div className="absolute top-full mt-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 min-w-44 z-50">
+                  {agentList.map(u => (
+                    <button key={u.id} onClick={() => handleBulkDelegate(u.name)}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center text-white"
+                        style={{ background: HX.purple }}>{u.initials}</span>
+                      {u.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Needs Attention */}
+          <button
+            onClick={handleBulkAttention}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+          >
+            ⚠ Needs Attention
+          </button>
+
+          {/* Mark complete with outcome */}
+          <div className="relative">
+            <button
+              onClick={() => { setBulkOutcome(v => !v); setBulkDelegate(false); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+            >
+              ✅ Mark complete ▾
+            </button>
+            {bulkOutcome && (
+              <div className="absolute top-full mt-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 min-w-52 z-50">
+                {OUTCOME_OPTIONS.map(o => (
+                  <button key={o.value} onClick={() => handleBulkComplete(o.value)}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <span>{o.emoji}</span>{o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => { setSelectedRows(new Set()); setSelectMode(false); }}
+            className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold text-white opacity-60 hover:opacity-100 transition-opacity"
+          >
+            ✕ Done
+          </button>
+        </div>
+      )}
 
       {/* Main content + optional detail panel */}
       <div className="flex flex-1 min-h-0">
@@ -204,6 +367,7 @@ export default function QueueView({
             onUpdateTask={(taskId, updates) => updateOne(taskId, updates)}
             onOpenNotes={setNotesTask}
             onArchive={taskId => onArchiveTask(queue.id, taskId, user)}
+            selectMode={selectMode}
             selectedRows={selectedRows}
             onSelectRow={handleSelectRow}
             onSelectAll={handleSelectAll}
@@ -258,87 +422,6 @@ export default function QueueView({
           />
         )}
       </div>
-
-      {/* ── Bulk action bar — appears when rows are selected ─────────────── */}
-      {selectedRows.size > 0 && tab === "work" && (
-        <div
-          className="flex-shrink-0 px-5 py-3 flex items-center gap-3 flex-wrap border-t"
-          style={{ background: HX.purple }}
-        >
-          <span className="text-white text-sm font-semibold">
-            {selectedRows.size} task{selectedRows.size > 1 ? "s" : ""} selected
-          </span>
-          <div className="h-4 w-px bg-white opacity-30" />
-
-          {/* Claim for me */}
-          <button
-            onClick={handleBulkClaim}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
-          >
-            ✋ Claim for me
-          </button>
-
-          {/* Delegate (managers only) */}
-          {isManager && (
-            <div className="relative">
-              <button
-                onClick={() => { setBulkDelegate(v => !v); setBulkOutcome(false); }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
-              >
-                👤 Delegate ▾
-              </button>
-              {bulkDelegate && (
-                <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 min-w-44 z-50">
-                  {agentList.map(u => (
-                    <button key={u.id} onClick={() => handleBulkDelegate(u.name)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center text-white"
-                        style={{ background: HX.purple }}>{u.initials}</span>
-                      {u.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Escalate */}
-          <button
-            onClick={handleBulkEscalate}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
-          >
-            ⬆️ Escalate
-          </button>
-
-          {/* Mark complete with outcome */}
-          <div className="relative">
-            <button
-              onClick={() => { setBulkOutcome(v => !v); setBulkDelegate(false); }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white border-opacity-40 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
-            >
-              ✅ Mark complete ▾
-            </button>
-            {bulkOutcome && (
-              <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 min-w-52 z-50">
-                {OUTCOME_OPTIONS.map(o => (
-                  <button key={o.value} onClick={() => handleBulkComplete(o.value)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                    <span>{o.emoji}</span>{o.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Clear */}
-          <button
-            onClick={() => setSelectedRows(new Set())}
-            className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold text-white opacity-60 hover:opacity-100 transition-opacity"
-          >
-            ✕ Clear
-          </button>
-        </div>
-      )}
 
       {/* Notes slide-out panel */}
       {notesTask && (

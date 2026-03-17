@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 import { HX } from "@/lib/brand";
 import StatCard from "@/components/ui/StatCard";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -10,10 +10,13 @@ function toDateStr(date) {
   return date.toLocaleDateString("en-CA"); // YYYY-MM-DD
 }
 
-function onDate(dateStr, target) {
-  if (!dateStr) return false;
-  return toDateStr(new Date(dateStr)) === target;
-}
+// Status display config for workload breakdown
+const WORKLOAD_STATUS = [
+  { key: "in_progress", label: "In progress",    color: "#7C3AED" },
+  { key: "pending",     label: "Pending",        color: "#D97706" },
+  { key: "blocked",     label: "Needs Attention", color: "#DC2626" },
+  { key: "escalated",   label: "Needs Attention", color: "#DC2626" },
+];
 
 export default function DailySummary({ queues, taskData }) {
   const today     = toDateStr(new Date());
@@ -52,12 +55,11 @@ export default function DailySummary({ queues, taskData }) {
   [queues, taskData, fromDate, toDate]);
 
   const completed  = updated.filter(t => t.status === "completed" || t.status === "done");
-  const blocked    = updated.filter(t => t.status === "blocked");
-  const escalated  = updated.filter(t => t.status === "escalated");
+  const attention  = updated.filter(t => t.status === "blocked" || t.status === "escalated");
   const inProgress = updated.filter(t => t.status === "in_progress");
 
-  // Agent name falls back to completed_by for done tasks
-  const agentOf = (t) => t.status_updated_by ?? t.completed_by ?? t.archived_by ?? "Unknown";
+  // Agent name: prefer whoever last changed status, then assigned agent
+  const agentOf = (t) => t.status_updated_by ?? t.completed_by ?? t.archived_by ?? t.assigned_to ?? "Unknown";
 
   const byAgent = useMemo(() => {
     const map = {};
@@ -72,6 +74,23 @@ export default function DailySummary({ queues, taskData }) {
   }, [completed]);
 
   const noActivity = updated.length === 0;
+
+  // ── Live workload snapshot (not date-range filtered) ──────────────────────
+  const workload = useMemo(() => {
+    const map = {};
+    queues.forEach(q => {
+      (taskData[q.id] ?? [])
+        .filter(t => !t.archived && t.assigned_to && t.status !== "done" && t.status !== "completed")
+        .forEach(t => {
+          if (!map[t.assigned_to]) map[t.assigned_to] = { total: 0, byStatus: {} };
+          map[t.assigned_to].total++;
+          map[t.assigned_to].byStatus[t.status] = (map[t.assigned_to].byStatus[t.status] ?? 0) + 1;
+        });
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([name, data]) => ({ name, ...data }));
+  }, [queues, taskData]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
@@ -121,6 +140,78 @@ export default function DailySummary({ queues, taskData }) {
         </div>
       </div>
 
+      {/* ── Team Workload — always shown, live snapshot ─────────────────── */}
+      <div className="mb-8">
+        <div className="flex items-baseline gap-2 mb-3">
+          <h3 className="font-semibold text-gray-800 text-base">Team Workload</h3>
+          <span className="text-xs text-gray-400">Live · tasks currently assigned</span>
+        </div>
+
+        {workload.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+            No tasks are currently assigned to any agent.
+          </div>
+        ) : (
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+            {workload.map(({ name, total, byStatus }) => {
+              const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+              // Build a mini stacked bar
+              const segments = WORKLOAD_STATUS.filter(s => byStatus[s.key]);
+              return (
+                <div key={name}
+                  className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3"
+                >
+                  {/* Agent header */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                      style={{ background: HX.purple }}
+                    >
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-800 text-sm truncate">{name}</div>
+                      <div className="text-xs text-gray-400">{total} active task{total !== 1 ? "s" : ""}</div>
+                    </div>
+                    <div
+                      className="text-2xl font-bold tabular-nums"
+                      style={{ color: HX.purple }}
+                    >
+                      {total}
+                    </div>
+                  </div>
+
+                  {/* Stacked bar */}
+                  <div className="h-2 rounded-full overflow-hidden flex gap-px bg-gray-100">
+                    {segments.map(s => (
+                      <div
+                        key={s.key}
+                        title={`${s.label}: ${byStatus[s.key]}`}
+                        style={{
+                          flex: byStatus[s.key],
+                          background: s.color,
+                          minWidth: 4,
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Status breakdown */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {segments.map(s => (
+                      <span key={s.key} className="text-xs flex items-center gap-1 text-gray-500">
+                        <span className="inline-block w-2 h-2 rounded-sm" style={{ background: s.color }} />
+                        {byStatus[s.key]} {s.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {noActivity ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <div className="text-4xl mb-3">📅</div>
@@ -130,11 +221,10 @@ export default function DailySummary({ queues, taskData }) {
       ) : (
         <>
           {/* Stat cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <StatCard label="Completed"   value={completed.length}  sub="tasks resolved"     accent="yellow" />
-            <StatCard label="In Progress" value={inProgress.length} sub="picked up"          accent="purple" />
-            <StatCard label="Blocked"     value={blocked.length}    sub="need attention"     accent="red"    />
-            <StatCard label="Escalated"   value={escalated.length}  sub="sent to next level" accent="gray"   />
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <StatCard label="Completed"       value={completed.length}  sub="tasks resolved" accent="green"  />
+            <StatCard label="In Progress"     value={inProgress.length} sub="picked up"      accent="purple" />
+            <StatCard label="Needs Attention" value={attention.length}  sub="blocked or escalated" accent="red" />
           </div>
 
           {/* Charts */}
@@ -143,12 +233,14 @@ export default function DailySummary({ queues, taskData }) {
               {byAgent.length > 0 && (
                 <div className="bg-white rounded-xl border border-gray-200 p-5">
                   <h3 className="font-semibold text-gray-800 mb-4">Completions by Agent</h3>
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ResponsiveContainer width="100%" height={Math.max(180, byAgent.length * 44)}>
                     <BarChart data={byAgent} barSize={28} layout="vertical">
                       <XAxis type="number" tick={{ fontSize: 11 }} />
                       <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={90} />
                       <Tooltip />
-                      <Bar dataKey="count" fill={HX.purple} radius={[0, 4, 4, 0]} name="Completed" />
+                      <Bar dataKey="count" fill={HX.purple} radius={[0, 4, 4, 0]} name="Completed">
+                        <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 600, fill: HX.purpleDark }} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -156,12 +248,14 @@ export default function DailySummary({ queues, taskData }) {
               {byQueue.length > 0 && (
                 <div className="bg-white rounded-xl border border-gray-200 p-5">
                   <h3 className="font-semibold text-gray-800 mb-4">Completions by Queue</h3>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={byQueue} barSize={28}>
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                  <ResponsiveContainer width="100%" height={Math.max(180, byQueue.length * 44)}>
+                    <BarChart data={byQueue} barSize={28} layout="vertical">
+                      <XAxis type="number" tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={90} />
                       <Tooltip />
-                      <Bar dataKey="count" fill={HX.yellow} radius={[4, 4, 0, 0]} name="Completed" />
+                      <Bar dataKey="count" fill={HX.yellow} radius={[0, 4, 4, 0]} name="Completed">
+                        <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 600, fill: "#7A6200" }} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

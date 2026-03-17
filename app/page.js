@@ -9,7 +9,8 @@
 
 import { useState } from "react";
 
-import { useTaskData }       from "@/lib/useTaskData";
+import { useTaskData }  from "@/lib/useTaskData";
+import { isManager }    from "@/lib/constants";
 
 import LoginScreen      from "@/components/auth/LoginScreen";
 import Navbar           from "@/components/layout/Navbar";
@@ -36,12 +37,8 @@ export default function Page() {
     addQueue,
     importToQueue,
     addTask,
+    addCustomField,
   } = useTaskData();
-
-  // ── Auth ──────────────────────────────────────────────────────────────────
-
-  // Owner and Manager both get manager-level access
-  const isManager = (u) => ["manager", "owner"].includes((u?.role ?? "").toLowerCase());
 
   const handleLogin = (u) => {
     setUser(u);
@@ -116,6 +113,7 @@ export default function Page() {
               onArchiveTask={archiveTask}
               onRestoreTask={restoreTask}
               onAddTask={(fields) => addTask(currentQueue.id, fields)}
+              onAddCustomField={(fieldDef) => addCustomField(currentQueue.id, fieldDef)}
               archiveAllCompleted={archiveAllCompleted}
               user={user}
               isLoading={loadingQueues.has(currentQueue.id)}

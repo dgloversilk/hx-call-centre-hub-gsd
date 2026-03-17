@@ -33,14 +33,18 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
   // Extract date from error_time field ("2026-03-01 01:05:12 UTC" → "2026-03-01")
   const errorDate = (t) => (t.error_time ?? "").slice(0, 10) || null;
 
-  const s = useMemo(() => ({
-    outstanding:       allTasks.filter(t => !t.archived).length,
-    needsAttention:    allTasks.filter(t => !t.archived && (t.status === "blocked" || t.status === "escalated")).length,
-    addedToday:        allTasks.filter(t => errorDate(t) === today).length,
-    completedToday:    allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length,
-    addedYesterday:    allTasks.filter(t => errorDate(t) === yesterday).length,
-    completedYesterday:allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === yesterday).length,
-  }), [allTasks, allArchived, today, yesterday]);
+  const s = useMemo(() => {
+    const active = allTasks.filter(t => !t.archived);
+    return {
+      outstanding:       active.length,
+      assigned:          active.filter(t => !!t.assigned_to).length,
+      needsAttention:    active.filter(t => t.status === "blocked" || t.status === "escalated").length,
+      addedToday:        allTasks.filter(t => errorDate(t) === today).length,
+      completedToday:    allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length,
+      addedYesterday:    allTasks.filter(t => errorDate(t) === yesterday).length,
+      completedYesterday:allArchived.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === yesterday).length,
+    };
+  }, [allTasks, allArchived, today, yesterday]);
 
   // Stacked bar: tasks by error_date, stacked by queue
   const barData = useMemo(() => {
@@ -80,9 +84,10 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
         </button>
       </div>
 
-      {/* 6 stat cards */}
-      <div className="grid grid-cols-6 gap-4 mb-6">
+      {/* 7 stat cards */}
+      <div className="grid grid-cols-7 gap-4 mb-6">
         <StatCard label="Outstanding"        value={s.outstanding}        sub="active tasks remaining"  accent="purple" />
+        <StatCard label="Assigned"           value={s.assigned}           sub={`of ${s.outstanding} outstanding`} accent="blue" />
         <StatCard label="Needs Attention"    value={s.needsAttention}     sub="blocked or escalated"    accent="red"    />
         <StatCard label="Added Today"        value={s.addedToday}         sub="errors logged today"     accent="blue"   />
         <StatCard label="Completed Today"    value={s.completedToday}     sub="completed today"         accent="green"  />
@@ -90,61 +95,114 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
         <StatCard label="Completed Yesterday"value={s.completedYesterday} sub="completed yesterday"     accent="green"  />
       </div>
 
-      {/* Stacked bar: errors by date, split by queue */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h3 className="font-semibold text-gray-800 mb-4">Errors by Date &amp; Queue</h3>
-        {barData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={barData} barSize={18} margin={{ top: 20, right: 8, left: 0, bottom: 4 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip
-                formatter={(value, name) => [value, queues.find(q => q.id === name)?.name ?? name]}
-                labelFormatter={l => `Error date: ${l}`}
-              />
-              <Legend
-                iconSize={10}
-                iconType="circle"
-                wrapperStyle={{ fontSize: 11 }}
-                formatter={name => queues.find(q => q.id === name)?.name ?? name}
-              />
-              {queues.map((q, i) => {
-                const isLast = i === queues.length - 1;
+      {/* Outstanding by queue table + Errors by date bar chart side by side */}
+      <div className="grid grid-cols-3 gap-5 mb-6">
+
+        {/* Outstanding by queue — simple table */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="font-semibold text-gray-800 mb-4">Outstanding by Queue</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left text-xs font-semibold text-gray-400 uppercase pb-2">Queue</th>
+                <th className="text-right text-xs font-semibold text-gray-400 uppercase pb-2">Total</th>
+                <th className="text-right text-xs font-semibold text-gray-400 uppercase pb-2">Assigned</th>
+                <th className="text-right text-xs font-semibold text-gray-400 uppercase pb-2">Attn</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {queues.map(q => {
+                const active  = (taskData[q.id] ?? []).filter(t => !t.archived);
+                const total   = active.length;
+                const assigned = active.filter(t => !!t.assigned_to).length;
+                const attn    = active.filter(t => t.status === "blocked" || t.status === "escalated").length;
+                const pct     = total > 0 ? Math.round((assigned / total) * 100) : 0;
                 return (
-                  <Bar
-                    key={q.id}
-                    dataKey={q.id}
-                    stackId="a"
-                    fill={QUEUE_COLORS[q.id] ?? HX.gray2}
-                    radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                  >
-                    {isLast && (
-                      <LabelList
-                        dataKey="_total"
-                        position="top"
-                        style={{ fontSize: 10, fontWeight: 700, fill: "#374151" }}
-                      />
-                    )}
-                  </Bar>
+                  <tr key={q.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => onPage(q.id)}>
+                    <td className="py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <span>{q.icon}</span>
+                        <span className="font-medium text-gray-700">{q.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 text-right font-bold text-gray-900 tabular-nums">{total}</td>
+                    <td className="py-2.5 text-right tabular-nums">
+                      <span className="font-semibold" style={{ color: HX.blue }}>{assigned}</span>
+                      <span className="text-gray-400 text-xs ml-1">{pct}%</span>
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums font-semibold" style={{ color: attn > 0 ? HX.red : "#D1D5DB" }}>{attn}</td>
+                  </tr>
                 );
               })}
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No error date data available</div>
-        )}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-gray-200">
+                <td className="py-2 text-xs font-semibold text-gray-500 uppercase">Total</td>
+                <td className="py-2 text-right font-bold text-gray-900 tabular-nums">{s.outstanding}</td>
+                <td className="py-2 text-right font-bold tabular-nums" style={{ color: HX.blue }}>{s.assigned}</td>
+                <td className="py-2 text-right font-bold tabular-nums" style={{ color: s.needsAttention > 0 ? HX.red : "#D1D5DB" }}>{s.needsAttention}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Stacked bar: errors by date, split by queue — takes 2 cols */}
+        <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="font-semibold text-gray-800 mb-4">Errors by Date &amp; Queue</h3>
+          {barData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={barData} barSize={18} margin={{ top: 20, right: 8, left: 0, bottom: 4 }}>
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  formatter={(value, name) => [value, queues.find(q => q.id === name)?.name ?? name]}
+                  labelFormatter={l => `Error date: ${l}`}
+                />
+                <Legend
+                  iconSize={10}
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 11 }}
+                  formatter={name => queues.find(q => q.id === name)?.name ?? name}
+                />
+                {queues.map((q, i) => {
+                  const isLast = i === queues.length - 1;
+                  return (
+                    <Bar
+                      key={q.id}
+                      dataKey={q.id}
+                      stackId="a"
+                      fill={QUEUE_COLORS[q.id] ?? HX.gray2}
+                      radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                    >
+                      {isLast && (
+                        <LabelList
+                          dataKey="_total"
+                          position="top"
+                          style={{ fontSize: 10, fontWeight: 700, fill: "#374151" }}
+                        />
+                      )}
+                    </Bar>
+                  );
+                })}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No error date data available</div>
+          )}
+        </div>
+
       </div>
 
       {/* Queue summary cards */}
       <h3 className="font-semibold text-gray-800 mb-3">Queue Summary</h3>
       <div className="grid grid-cols-2 gap-4">
         {queues.map(q => {
-          const allQ          = taskData[q.id] ?? [];
-          const active        = allQ.filter(t => !t.archived);
-          const total         = allQ.length;
-          const outstanding   = active.length;
-          const addedYest     = allQ.filter(t => (t.error_time ?? "").slice(0, 10) === yesterday).length;
-          const doneYest      = allQ.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length;
+          const allQ           = taskData[q.id] ?? [];
+          const active         = allQ.filter(t => !t.archived);
+          const total          = allQ.length;
+          const outstanding    = active.length;
+          const assigned       = active.filter(t => !!t.assigned_to).length;
+          const doneYest       = allQ.filter(t => t.completed_at && toDateStr(new Date(t.completed_at)) === today).length;
           const needsAttention = active.filter(t => t.status === "blocked" || t.status === "escalated").length;
 
           // Status strip proportions
@@ -185,8 +243,8 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
                   <div className="text-xs text-gray-500">Outstanding</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold" style={{ color: HX.blue }}>{addedYest}</div>
-                  <div className="text-xs text-gray-500">Added Yest.</div>
+                  <div className="text-lg font-bold" style={{ color: HX.blue }}>{assigned}</div>
+                  <div className="text-xs text-gray-500">Assigned</div>
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold" style={{ color: HX.green }}>{doneYest}</div>
