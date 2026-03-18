@@ -167,7 +167,7 @@ const GHOST_BTN = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-opaci
 export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onUpdateTask, user }) {
   if (!task) return null;
 
-  const [dropdown, setDropdown] = useState(null); // "outcome" | "delegate" | null
+  const [dropdown, setDropdown] = useState(null); // "status" | "delegate" | null
   const toggle = (name) => setDropdown(d => d === name ? null : name);
 
   const cfg        = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
@@ -180,17 +180,21 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
 
   const update = (updates) => { onUpdateTask?.(task._id, updates); setDropdown(null); };
 
-  const outcomeOptions = queue.completionOutcomes ?? (
-    isBigQuery ? OUTCOME_OPTIONS : [
-      { value: "resolved",      label: "Resolved",      emoji: "✅" },
-      { value: "not_actionable",label: "Not actionable",emoji: "❌" },
-      { value: "escalated",     label: "Escalated",     emoji: "⬆️" },
-    ]
-  );
+  const STATUS_OPTIONS = [
+    { value: "pending",     label: "Pending",         emoji: "⏳" },
+    { value: "in_progress", label: "In Progress",     emoji: "▶️" },
+    { value: "done",        label: "Done",            emoji: "✅" },
+    { value: "blocked",     label: "Needs Attention", emoji: "⚠️" },
+  ];
 
-  const claim    = () => update({ status: "in_progress", assigned_to: user?.name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
-  const complete = (outcome) => update({ status: "done", completion_outcome: outcome, completed_by: user?.name, completed_at: new Date().toISOString() });
-  const delegate = (name)    => update({ assigned_to: name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
+  const claim  = () => update({ status: "in_progress", assigned_to: user?.name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
+  const setStatus = (value) => {
+    const extra = value === "done"
+      ? { completed_by: user?.name, completed_at: new Date().toISOString() }
+      : {};
+    update({ status: value, ...extra });
+  };
+  const delegate = (name) => update({ assigned_to: name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
 
   const agentList = MOCK_USERS.filter(u => u.name !== user?.name);
 
@@ -248,25 +252,15 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
                 ✋ Claim task
               </button>
             )}
-            {myTask && task.status === "pending" && (
-              <button onClick={() => update({ status: "in_progress" })} className={GHOST_BTN} style={{ background: HX.blue, color: "white" }}>
-                ▶ Start
-              </button>
-            )}
-            {(myTask || manager) && ["blocked", "escalated"].includes(task.status) && (
-              <button onClick={() => update({ status: "in_progress" })} className={GHOST_BTN} style={{ background: HX.blue, color: "white" }}>
-                ▶ Resume
-              </button>
-            )}
-            {(myTask || manager) && !["pending", "done", "completed"].includes(task.status) && (
+            {(myTask || manager) && !isDone && (
               <div className="relative">
-                <button onClick={() => toggle("outcome")} className={GHOST_BTN} style={{ background: HX.green, color: "white" }}>
-                  ✅ Complete ▾
+                <button onClick={() => toggle("status")} className={GHOST_BTN} style={{ background: HX.blue, color: "white" }}>
+                  Set status ▾
                 </button>
-                {dropdown === "outcome" && (
-                  <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 min-w-52">
-                    {outcomeOptions.map(o => (
-                      <button key={o.value} onClick={() => complete(o.value)}
+                {dropdown === "status" && (
+                  <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 min-w-48">
+                    {STATUS_OPTIONS.filter(o => o.value !== task.status && !(o.value === "blocked" && task.status === "escalated")).map(o => (
+                      <button key={o.value} onClick={() => setStatus(o.value)}
                         className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                         <span>{o.emoji}</span>{o.label}
                       </button>
@@ -274,9 +268,6 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
                   </div>
                 )}
               </div>
-            )}
-            {(myTask || manager) && task.status === "in_progress" && (
-              <button onClick={() => update({ status: "blocked" })} className={GHOST_BTN} style={{ background: HX.red, color: "white" }}>⚠ Needs Attention</button>
             )}
             {manager && (
               <div className="relative">

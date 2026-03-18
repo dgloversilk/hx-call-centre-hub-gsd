@@ -38,7 +38,7 @@ export default function QueueView({
   const [statusFilter,  setStatusFilter]  = useState("all");
   const [tab,           setTab]           = useState("work");
   const [notesTask,     setNotesTask]     = useState(null);
-  const [detailTask,    setDetailTask]    = useState(null);
+  const [detailTaskId,  setDetailTaskId]  = useState(null);
   const [selectMode,    setSelectMode]    = useState(false);
   const [selectedRows,  setSelectedRows]  = useState(new Set());
   const [bulkDelegate,  setBulkDelegate]  = useState(false);
@@ -49,13 +49,18 @@ export default function QueueView({
 
   // Clear detail panel, selection and select mode when switching queues
   useEffect(() => {
-    setDetailTask(null);
+    setDetailTaskId(null);
     setSelectedRows(new Set());
     setSelectMode(false);
   }, [queue.id]);
 
   // Active (non-archived) tasks
   const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks]);
+  // Always look up the live task so the panel reflects updates immediately
+  const detailTask  = useMemo(() =>
+    detailTaskId ? (activeTasks.find(t => t._id === detailTaskId) ?? null) : null,
+    [detailTaskId, activeTasks]
+  );
 
   const filtered = useMemo(() => {
     let t;
@@ -101,7 +106,7 @@ export default function QueueView({
   };
 
   const handleRowClick = (task) => {
-    setDetailTask(prev => prev?._id === task._id ? null : task);
+    setDetailTaskId(prev => prev === task._id ? null : task._id);
   };
 
   const handleSelectRow = (taskId) => {
@@ -416,7 +421,7 @@ export default function QueueView({
             task={detailTask}
             queue={queue}
             user={user}
-            onClose={() => setDetailTask(null)}
+            onClose={() => setDetailTaskId(null)}
             onOpenNotes={(t) => setNotesTask(t)}
             onUpdateTask={(taskId, updates) => updateOne(taskId, updates)}
           />
