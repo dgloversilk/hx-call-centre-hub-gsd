@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GSD — Get Sh*t Done · One Pager</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple:      #542E91;
+      --purple-dark: #47277B;
+      --purple-pale: #EEEAF4;
+      --purple-mid:  #A996C8;
+      --yellow:      #FDD506;
+      --green:       #347E7A;
+      --green-pale:  #E5F1F0;
+      --red:         #D9313A;
+      --red-pale:    #FAE5E6;
+      --blue:        #2A77B6;
+      --blue-pale:   #E5F0F9;
+      --gray-light:  #F7F7F7;
+      --gray-border: #E5E7EB;
+      --text:        #111827;
+      --text-mid:    #4B5563;
+      --text-light:  #9CA3AF;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.6;
+      font-size: 14px;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 48px 40px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 36px;
+      padding-bottom: 28px;
+      border-bottom: 3px solid var(--purple);
+    }
+    .header-left { flex: 1; }
+    .prototype-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--yellow);
+      color: #5A4000;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .prototype-badge::before { content: "⚡"; }
+    h1 {
+      font-size: 38px;
+      font-weight: 800;
+      color: var(--purple);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+    h1 span { color: var(--text); }
+    .tagline {
+      font-size: 15px;
+      color: var(--text-mid);
+      margin-top: 8px;
+      font-weight: 400;
+    }
+    .meta {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .meta p {
+      font-size: 12px;
+      color: var(--text-light);
+      line-height: 1.8;
+    }
+    .meta strong { color: var(--text-mid); }
+
+    /* ── Section headings ── */
+    h2 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h2::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--purple-pale);
+    }
+
+    /* ── Layout ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    .three-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    section { margin-bottom: 28px; }
+
+    /* ── Callout / intro box ── */
+    .intro-box {
+      background: var(--purple);
+      color: #fff;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+    }
+    .intro-box p {
+      font-size: 15px;
+      line-height: 1.7;
+      opacity: 0.92;
+    }
+    .intro-box p + p { margin-top: 10px; }
+    .intro-box strong { opacity: 1; color: var(--yellow); }
+
+    /* ── Problem / solution cards ── */
+    .card {
+      border-radius: 10px;
+      padding: 18px 20px;
+      border: 1px solid var(--gray-border);
+    }
+    .card h3 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .card ul li {
+      font-size: 13px;
+      color: var(--text-mid);
+      padding-left: 16px;
+      position: relative;
+    }
+    .card ul li::before {
+      content: "·";
+      position: absolute;
+      left: 4px;
+      color: var(--purple-mid);
+      font-weight: 700;
+    }
+    .card-problem { background: var(--red-pale); border-color: #F4C1C4; }
+    .card-problem h3 { color: var(--red); }
+    .card-problem ul li::before { color: var(--red); }
+    .card-solution { background: var(--green-pale); border-color: #C2DBD7; }
+    .card-solution h3 { color: var(--green); }
+    .card-solution ul li::before { color: var(--green); }
+
+    /* ── Feature pills ── */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+    .feature-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      border: 1px solid var(--gray-border);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-mid);
+      background: var(--gray-light);
+    }
+    .feature-pill .icon { font-size: 14px; }
+
+    /* ── User persona cards ── */
+    .persona {
+      border-radius: 10px;
+      padding: 16px 18px;
+      border: 1px solid var(--gray-border);
+    }
+    .persona-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .persona h3 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .persona p {
+      font-size: 12px;
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+    .persona-agent  { background: var(--blue-pale);   border-color: #BFD6E9; }
+    .persona-manager{ background: var(--purple-pale); border-color: var(--purple-mid); }
+    .persona-analyst{ background: var(--green-pale);  border-color: #C2DBD7; }
+    .persona-agent h3   { color: var(--blue); }
+    .persona-manager h3 { color: var(--purple); }
+    .persona-analyst h3 { color: var(--green); }
+
+    /* ── Principles ── */
+    .principles { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+    .principle {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: var(--gray-light);
+      border: 1px solid var(--gray-border);
+    }
+    .principle-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--purple);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .principle-body strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .principle-body p { font-size: 12px; color: var(--text-mid); }
+
+    /* ── Feedback box ── */
+    .feedback-box {
+      border-radius: 12px;
+      padding: 22px 26px;
+      background: var(--yellow);
+      border: 1px solid #E6C100;
+      margin-bottom: 28px;
+    }
+    .feedback-box h2 { color: #5A4000; }
+    .feedback-box h2::after { background: #E6C100; }
+    .feedback-box p {
+      font-size: 13px;
+      color: #3D2B00;
+      line-height: 1.7;
+    }
+    .feedback-box p + p { margin-top: 8px; }
+    .feedback-questions {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .feedback-questions li {
+      font-size: 13px;
+      color: #3D2B00;
+      padding-left: 18px;
+      position: relative;
+      list-style: none;
+    }
+    .feedback-questions li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      font-weight: 700;
+      color: #5A4000;
+    }
+
+    /* ── What's next ── */
+    .roadmap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .roadmap-item {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px dashed var(--purple-mid);
+      background: var(--purple-pale);
+      font-size: 12px;
+      color: var(--purple);
+    }
+    .roadmap-item strong { display: block; font-weight: 600; margin-bottom: 2px; }
+    .roadmap-item span { color: var(--text-light); font-size: 11px; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 36px;
+      padding-top: 20px;
+      border-top: 1px solid var(--gray-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer p { font-size: 11px; color: var(--text-light); }
+    .hx-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--purple);
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    @media print {
+      body { padding: 32px; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="prototype-badge">Prototype · Discovery Stage</div>
+      <h1>GSD <span>— Get Sh*t Done</span></h1>
+      <p class="tagline">A smarter way for call centre teams to manage, action and track daily operational tasks.</p>
+    </div>
+    <div class="meta">
+      <p><strong>Status</strong> Active prototype</p>
+      <p><strong>Team</strong> Holiday Extras Operations</p>
+      <p><strong>Owner</strong> Daniel Glover-Silk</p>
+      <p><strong>Date</strong> March 2026</p>
+    </div>
+  </header>
+
+  <!-- ── Intro ── -->
+  <div class="intro-box">
+    <p>
+      GSD is an internal tool being built <strong>in the open, with the people who use it.</strong>
+      It started as a question: why are our call centre agents still managing their daily task queues through
+      spreadsheets, Slack messages, and manual exports — when we have all the data already?
+    </p>
+    <p>
+      This is <strong>not a finished product.</strong> It's a working prototype that we're putting in front of
+      real users as early as possible, learning what actually helps, and evolving it quickly. Everything you
+      see today may look different next week — and that's the point.
+    </p>
+  </div>
+
+  <!-- ── The problem ── -->
+  <section>
+    <h2>Where we started</h2>
+    <div class="two-col">
+      <div class="card card-problem">
+        <h3>What was happening before</h3>
+        <ul>
+          <li>Failed bookings and duplicate cases arriving in spreadsheets or via Slack</li>
+          <li>Agents manually tracking what they'd worked on in their own way</li>
+          <li>Managers with no real-time view of who was doing what</li>
+          <li>No single place to see priority — is the DE queue more urgent than UK today?</li>
+          <li>Tasks falling through the cracks, especially at shift handover</li>
+          <li>Escalations handled informally — no audit trail</li>
+        </ul>
+      </div>
+      <div class="card card-solution">
+        <h3>What we're trying to achieve</h3>
+        <ul>
+          <li>A single place where all queue data arrives automatically</li>
+          <li>Agents know exactly what to work on and in what order</li>
+          <li>Managers set priorities — the work flows itself, no bulk-assigning</li>
+          <li>Every action is tracked: who did what, when, and what the outcome was</li>
+          <li>Instant visibility on blockers, escalations, and daily completion rate</li>
+          <li>Something that feels good to use, not another internal tool people avoid</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── How it works ── -->
+  <section>
+    <h2>How it works — the core idea</h2>
+    <div class="principles">
+      <div class="principle">
+        <div class="principle-num">1</div>
+        <div class="principle-body">
+          <strong>Data arrives automatically</strong>
+          <p>Queues are populated from BigQuery exports and CSV uploads. Agents open the tool and the work is already there — no copy-pasting, no chasing.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">2</div>
+        <div class="principle-body">
+          <strong>Managers set priorities, not assignments</strong>
+          <p>Managers rank queues in order of importance. Agents see the full pool of available work and self-assign ("claim") the next task. The system enforces the right order — managers don't have to touch individual tasks.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">3</div>
+        <div class="principle-body">
+          <strong>Agents work task-by-task, not queue-by-queue</strong>
+          <p>The "My Tasks" view shows a single prioritised list across all queues — sorted by urgency and date. An agent presses "Next task" and works top to bottom. No mental overhead about which queue to open.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">4</div>
+        <div class="principle-body">
+          <strong>Everything is visible in real time</strong>
+          <p>The Daily Summary gives managers a live view of throughput, completions by agent and queue, and anything flagged as "Needs Attention" — without having to ask anyone.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Who it's for ── -->
+  <section>
+    <h2>Designed for three types of user</h2>
+    <div class="three-col">
+      <div class="persona persona-agent">
+        <span class="persona-icon">🙋</span>
+        <h3>The Agent</h3>
+        <p>Knows exactly what to work on next. Gets a prioritised task list, quick inline actions (start, done, flag), and a clear sense of how much they've completed today.</p>
+      </div>
+      <div class="persona persona-manager">
+        <span class="persona-icon">📋</span>
+        <h3>The Manager</h3>
+        <p>Sets queue priorities and steps back. Sees the whole team's workload and progress in one view. Intervenes on blockers — not on routine assignment.</p>
+      </div>
+      <div class="persona persona-analyst">
+        <span class="persona-icon">📊</span>
+        <h3>The Analyst</h3>
+        <p>Uploads new datasets via CSV, sees completions broken down by queue and agent, and tracks trends like error types and date urgency distribution across the queue.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── What's in it right now ── -->
+  <section>
+    <h2>What's in the prototype today</h2>
+    <div class="features">
+      <div class="feature-pill"><span class="icon">📥</span> Live queue ingestion from BigQuery &amp; CSV</div>
+      <div class="feature-pill"><span class="icon">🔢</span> Manager-controlled queue priority order</div>
+      <div class="feature-pill"><span class="icon">⚡</span> Agent self-assignment (pull model)</div>
+      <div class="feature-pill"><span class="icon">🎯</span> My Tasks — cross-queue prioritised list</div>
+      <div class="feature-pill"><span class="icon">⚠️</span> Needs Attention flagging</div>
+      <div class="feature-pill"><span class="icon">📝</span> Per-task notes</div>
+      <div class="feature-pill"><span class="icon">📊</span> Daily Summary — completions by agent &amp; queue</div>
+      <div class="feature-pill"><span class="icon">🔁</span> Duplicate detection on CSV import</div>
+      <div class="feature-pill"><span class="icon">🗃️</span> Task archiving</div>
+      <div class="feature-pill"><span class="icon">👤</span> Role-based views (Agent / Manager / Owner)</div>
+      <div class="feature-pill"><span class="icon">🌐</span> Multi-market support (UK, DE + Transfers)</div>
+      <div class="feature-pill"><span class="icon">🔍</span> Urgency colour-coding (overdue / today / upcoming)</div>
+    </div>
+  </section>
+
+  <!-- ── Feedback ── -->
+  <div class="feedback-box">
+    <h2>This is where you come in</h2>
+    <p>
+      We built this prototype to <strong>learn, not to ship.</strong> Every decision made so far is provisional.
+      The tool is being used with real queues and real tasks now — but what you see is the result of a few weeks
+      of building and testing, not months of requirements gathering and sign-off.
+    </p>
+    <p>The most useful thing you can do right now is tell us honestly:</p>
+    <ul class="feedback-questions">
+      <li>Does the "My Tasks" flow match how agents actually think about their day?</li>
+      <li>Would managers naturally use queue priority ordering — or do they still want to assign directly?</li>
+      <li>What's missing that would make you actually switch to this over what you're doing today?</li>
+      <li>What feels confusing, slow, or wrong — even if it's a small thing?</li>
+      <li>What data would you want to see that isn't here yet?</li>
+    </ul>
+  </div>
+
+  <!-- ── What's next ── -->
+  <section>
+    <h2>What we're exploring next</h2>
+    <div class="roadmap">
+      <div class="roadmap-item">
+        <strong>Shift handover view</strong>
+        <span>See at a glance what's in progress, blocked, or unfinished at end of day</span>
+      </div>
+      <div class="roadmap-item">
+        <strong>Automated scheduling</strong>
+        <span>Queues refresh automatically from BigQuery on a daily schedule</span>
+      </div>
+      <div class="roadmap-item">
+        <strong>Historical reporting</strong>
+        <span>Week-on-week completion trends, error type patterns, team throughput</span>
+      </div>
+      <div class="roadmap-item">
+        <strong>Custom queue types</strong>
+        <span>Any team uploading any kind of structured task data — not just failures</span>
+      </div>
+      <div class="roadmap-item">
+        <strong>Outcome tracking</strong>
+        <span>What actually happened to each task — fixed, escalated, not valid — feeding back into reporting</span>
+      </div>
+      <div class="roadmap-item">
+        <strong>Real authentication</strong>
+        <span>SSO login so anyone in HX can use it immediately without setup</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer>
+    <p>
+      <span class="hx-dot"></span>
+      GSD is an internal Holiday Extras prototype · Not for external distribution
+    </p>
+    <p>Questions or feedback → <strong>daniel.glover-silk@holidayextras.com</strong></p>
+  </footer>
+
+</body>
+</html>

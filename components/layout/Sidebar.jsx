@@ -37,7 +37,8 @@ function TotalsBadge({ total, pending, inProgress, isActive }) {
   );
 }
 
-export default function Sidebar({ queues, taskData, page, onPage, user, loadingQueues = new Set() }) {
+export default function Sidebar({ queues, taskData, page, onPage, user, onReorderQueue, loadingQueues = new Set() }) {
+  const isManager = ["manager", "owner"].includes((user?.role ?? "").toLowerCase());
   const [collapsed,   setCollapsed]   = useState({});
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const dragging = useRef(false);
@@ -97,13 +98,13 @@ export default function Sidebar({ queues, taskData, page, onPage, user, loadingQ
     { total: 0, pending: 0, in_progress: 0, archived: 0 }
   );
 
-  // Build ordered sections: { group, queues[] }
+  // Build ordered sections with global priority index preserved
   const sections = [];
-  queues.forEach(q => {
+  queues.forEach((q, idx) => {
     const g    = q.group ?? null;
     const last = sections[sections.length - 1];
-    if (last && last.group === g) last.queues.push(q);
-    else sections.push({ group: g, queues: [q] });
+    if (last && last.group === g) last.queues.push({ ...q, _priority: idx });
+    else sections.push({ group: g, queues: [{ ...q, _priority: idx }] });
   });
 
   return (
@@ -112,15 +113,17 @@ export default function Sidebar({ queues, taskData, page, onPage, user, loadingQ
       style={{ width: sidebarWidth }}
     >
 
-      {/* ── Manager navigation ───────────────────────────────────────────── */}
-      {["manager", "owner"].includes((user.role ?? "").toLowerCase()) && (
-        <div className="p-4 border-b border-gray-700 space-y-1">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Navigation</p>
-          <NavButton label="Dashboard"     icon="📊" active={page === "dashboard"}     onClick={() => onPage("dashboard")} />
-          <NavButton label="Daily Summary" icon="📅" active={page === "daily_summary"} onClick={() => onPage("daily_summary")} />
-          <NavButton label="Upload Tasks"  icon="⬆️" active={page === "upload"}        onClick={() => onPage("upload")} />
-        </div>
-      )}
+      {/* ── Navigation ───────────────────────────────────────────────────── */}
+      <div className="p-4 border-b border-gray-700 space-y-1">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Navigation</p>
+        <NavButton label="My Tasks" icon="✅" active={page === "my_tasks"} onClick={() => onPage("my_tasks")} />
+        {isManager && <>
+          <NavButton label="Dashboard"      icon="📊" active={page === "dashboard"}      onClick={() => onPage("dashboard")} />
+          <NavButton label="Daily Summary"  icon="📅" active={page === "daily_summary"}  onClick={() => onPage("daily_summary")} />
+          <NavButton label="Queue Priority" icon="🔢" active={page === "queue_priority"} onClick={() => onPage("queue_priority")} />
+          <NavButton label="Upload Tasks"   icon="⬆️" active={page === "upload"}         onClick={() => onPage("upload")} />
+        </>}
+      </div>
 
       {/* ── Grand total strip ────────────────────────────────────────────── */}
       <div className="px-4 py-3 border-b border-gray-700 text-xs space-y-0.5">
@@ -144,7 +147,8 @@ export default function Sidebar({ queues, taskData, page, onPage, user, loadingQ
           {sections.map((section) => {
             if (!section.group) {
               return section.queues.map(q => (
-                <QueueButton key={q.id} q={q} s={qStats(q.id)} page={page} onPage={onPage} loadingQueues={loadingQueues} />
+                <QueueButton key={q.id} q={q} s={qStats(q.id)} page={page} onPage={onPage} loadingQueues={loadingQueues}
+                  priority={q._priority} total={queues.length} isManager={isManager} onReorder={onReorderQueue} />
               ));
             }
 
@@ -190,7 +194,8 @@ export default function Sidebar({ queues, taskData, page, onPage, user, loadingQ
                 {isOpen && (
                   <div className="ml-2 pl-2 border-l border-gray-700 space-y-0.5 mt-0.5">
                     {section.queues.map(q => (
-                      <QueueButton key={q.id} q={q} s={qStats(q.id)} page={page} onPage={onPage} loadingQueues={loadingQueues} indent />
+                      <QueueButton key={q.id} q={q} s={qStats(q.id)} page={page} onPage={onPage} loadingQueues={loadingQueues} indent
+                        priority={q._priority} total={queues.length} isManager={isManager} onReorder={onReorderQueue} />
                     ))}
                   </div>
                 )}
@@ -245,42 +250,62 @@ export default function Sidebar({ queues, taskData, page, onPage, user, loadingQ
 }
 
 /** Individual queue button */
-function QueueButton({ q, s, page, onPage, loadingQueues, indent = false }) {
+function QueueButton({ q, s, page, onPage, loadingQueues, indent = false, priority, total, isManager, onReorder }) {
   const isActive = page === q.id;
   const pct = s.total > 0 ? Math.round((s.archived / s.total) * 100) : 0;
 
   return (
-    <button
-      onClick={() => onPage(q.id)}
-      className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors"
-      style={isActive ? { background: HX.purple, color: "white" } : {}}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#1F2937"; }}
-      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = ""; }}
-    >
-      <div className="flex items-center gap-2 mb-0.5">
-        <span>{q.icon}</span>
-        <span className="font-medium truncate flex-1">{q.name}</span>
-        {loadingQueues.has(q.id) ? (
-          <span className="text-xs opacity-60 animate-pulse">syncing…</span>
-        ) : s.archived > 0 && (
-          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.15)" }}>
-            {s.archived}
-          </span>
-        )}
-      </div>
-      {/* Sub-subtotals per queue */}
-      <div
-        className="text-xs pl-6 mb-1"
-        style={{ color: isActive ? HX.purpleLight : "#6B7280" }}
+    <div className="group/qb relative">
+      <button
+        onClick={() => onPage(q.id)}
+        className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors"
+        style={isActive ? { background: HX.purple, color: "white" } : {}}
+        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#1F2937"; }}
+        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = ""; }}
       >
-        {s.total} total · {s.pending} pending
-        {s.in_progress > 0 && <> · <span style={{ color: isActive ? "white" : HX.blue, fontWeight: 600 }}>{s.in_progress} in progress</span></>}
-      </div>
-      <div className="pl-6">
-        <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: HX.yellow }} />
+        <div className="flex items-center gap-2 mb-0.5">
+          <span>{q.icon}</span>
+          <span className="font-medium truncate flex-1">{q.name}</span>
+          {/* Priority badge */}
+          <span className="text-xs font-bold opacity-40" style={{ color: isActive ? "white" : HX.yellow }}>
+            #{priority + 1}
+          </span>
+          {loadingQueues.has(q.id) ? (
+            <span className="text-xs opacity-60 animate-pulse">syncing…</span>
+          ) : s.archived > 0 && (
+            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.15)" }}>
+              {s.archived}
+            </span>
+          )}
         </div>
-      </div>
-    </button>
+        <div className="text-xs pl-6 mb-1" style={{ color: isActive ? HX.purpleLight : "#6B7280" }}>
+          {s.total} total · {s.pending} pending
+          {s.in_progress > 0 && <> · <span style={{ color: isActive ? "white" : HX.blue, fontWeight: 600 }}>{s.in_progress} in progress</span></>}
+        </div>
+        <div className="pl-6">
+          <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: HX.yellow }} />
+          </div>
+        </div>
+      </button>
+
+      {/* Manager reorder controls — visible on hover */}
+      {isManager && onReorder && (
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover/qb:opacity-100 transition-opacity">
+          <button
+            onClick={e => { e.stopPropagation(); onReorder(q.id, -1); }}
+            disabled={priority === 0}
+            className="text-gray-400 hover:text-white disabled:opacity-20 leading-none text-xs px-1"
+            title="Move up"
+          >▲</button>
+          <button
+            onClick={e => { e.stopPropagation(); onReorder(q.id, 1); }}
+            disabled={priority === total - 1}
+            className="text-gray-400 hover:text-white disabled:opacity-20 leading-none text-xs px-1"
+            title="Move down"
+          >▼</button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -20,6 +20,8 @@ import DailySummary     from "@/components/summary/DailySummary";
 import QueueView        from "@/components/queue/QueueView";
 import UploadPage       from "@/components/upload/UploadPage";
 import GlobalArchiveView from "@/components/archive/GlobalArchiveView";
+import MyTasks          from "@/components/my-tasks/MyTasks";
+import QueuePriority    from "@/components/settings/QueuePriority";
 
 export default function Page() {
   const [user, setUser] = useState(null);
@@ -38,11 +40,12 @@ export default function Page() {
     importToQueue,
     addTask,
     addCustomField,
+    reorderQueue,
   } = useTaskData();
 
   const handleLogin = (u) => {
     setUser(u);
-    setPage(isManager(u) ? "dashboard" : (queues[0]?.id ?? "dashboard"));
+    setPage(isManager(u) ? "dashboard" : "my_tasks");
   };
 
   const handleLogout = () => {
@@ -69,6 +72,7 @@ export default function Page() {
           onPage={setPage}
           user={user}
           loadingQueues={loadingQueues}
+          onReorderQueue={reorderQueue}
         />
 
         <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-white">
@@ -89,11 +93,30 @@ export default function Page() {
           {page === "upload" && isManager(user) && (
             <UploadPage
               queues={queues}
+              taskData={taskData}
               onAddQueue={addQueue}
               onImportToQueue={importToQueue}
               onAddTask={addTask}
               onBack={() => setPage(defaultPage)}
             />
+          )}
+
+          {page === "my_tasks" && (
+            <div className="flex-1 min-h-0 flex flex-col p-6 overflow-hidden">
+              <MyTasks
+                queues={queues}
+                taskData={taskData}
+                user={user}
+                onUpdateTask={updateTask}
+                onNavigateToQueue={setPage}
+              />
+            </div>
+          )}
+
+          {page === "queue_priority" && isManager(user) && (
+            <div className="flex-1 overflow-y-auto p-6">
+              <QueuePriority queues={queues} taskData={taskData} onReorder={reorderQueue} />
+            </div>
           )}
 
           {page === "archive" && (
