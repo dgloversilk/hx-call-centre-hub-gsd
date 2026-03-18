@@ -584,16 +584,16 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
     if (selected?.task._id === task._id) {
       setSelected(null); setPanelOpen(false);
     } else {
-      setSelected({ task, queue }); setPanelOpen(false);
+      setSelected({ task, queue }); setPanelOpen(true);
     }
   };
 
   const goNext = () => {
     if (!filteredTasks.length) return;
-    if (!selected) { setSelected(filteredTasks[0]); return; }
+    if (!selected) { setSelected(filteredTasks[0]); setPanelOpen(true); return; }
     const idx  = filteredTasks.findIndex(t => t.task._id === selected.task._id);
     const next = filteredTasks[(idx + 1) % filteredTasks.length];
-    setSelected(next);
+    setSelected(next); setPanelOpen(true);
   };
 
   // Live-sync selected with task data
