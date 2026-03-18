@@ -64,7 +64,7 @@ export default function Navbar({ user, onLogout, queues = [], taskData = {}, onP
         <div>
           <span className="font-semibold">GSD</span>
           <span className="text-xs ml-3 hidden sm:inline" style={{ color: HX.purpleLight }}>
-            Get Sh*t Done
+            Get Stuff Done
           </span>
         </div>
       </div>

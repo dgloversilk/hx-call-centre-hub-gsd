@@ -3,7 +3,7 @@ import Providers from "@/components/auth/Providers";
 
 export const metadata = {
   title: "GSD — Holiday Extras",
-  description: "Get Sh*t Done · Task management for the Holiday Extras call centre",
+  description: "Get Stuff Done · Task management for the Holiday Extras call centre",
 };
 
 export default function RootLayout({ children }) {

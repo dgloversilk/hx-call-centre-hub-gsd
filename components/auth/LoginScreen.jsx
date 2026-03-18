@@ -23,7 +23,7 @@ export default function LoginScreen({ onLogin }) {
             <div className="text-left">
               <div className="text-2xl font-bold text-gray-900 leading-tight">GSD</div>
               <div className="text-xs font-semibold tracking-widest uppercase" style={{ color: HX.purple }}>
-                Get Sh*t Done
+                Get Stuff Done
               </div>
             </div>
           </div>

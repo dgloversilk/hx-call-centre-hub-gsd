@@ -395,7 +395,7 @@ function TaskRow({ item, idx, isSelected, onSelect, updateTask, user }) {
 
 // ── Available to pull section ─────────────────────────────────────────────────
 
-function AvailableSection({ queues, taskData, user, updateTask, manager }) {
+function AvailableSection({ queues, taskData, user, updateTask, manager, onClaim }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const available = useMemo(() => {
@@ -416,13 +416,14 @@ function AvailableSection({ queues, taskData, user, updateTask, manager }) {
 
   if (!available.length) return null;
 
-  const claim = (queueId, taskId) => {
-    updateTask(queueId, taskId, {
+  const claim = (queue, task) => {
+    updateTask(queue.id, task._id, {
       status:      "in_progress",
       assigned_to: user?.name,
       assigned_by: user?.name,
       assigned_at: new Date().toISOString(),
     });
+    onClaim?.(queue, task);
   };
 
   return (
@@ -485,7 +486,7 @@ function AvailableSection({ queues, taskData, user, updateTask, manager }) {
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <button
-                        onClick={() => claim(queue.id, task._id)}
+                        onClick={() => claim(queue, task)}
                         className="px-3 py-1 rounded-lg text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity"
                         style={{ background: HX.purple }}>
                         ⚡ Claim
@@ -774,6 +775,10 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
             user={user}
             updateTask={updateTask}
             manager={manager}
+            onClaim={(queue, task) => {
+              setSelected({ task, queue });
+              setPanelOpen(true);
+            }}
           />
         </div>
 

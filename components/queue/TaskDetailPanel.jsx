@@ -180,6 +180,14 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
 
   const update = (updates) => { onUpdateTask?.(task._id, updates); setDropdown(null); };
 
+  const outcomeOptions = queue.completionOutcomes ?? (
+    isBigQuery ? OUTCOME_OPTIONS : [
+      { value: "resolved",      label: "Resolved",      emoji: "✅" },
+      { value: "not_actionable",label: "Not actionable",emoji: "❌" },
+      { value: "escalated",     label: "Escalated",     emoji: "⬆️" },
+    ]
+  );
+
   const claim    = () => update({ status: "in_progress", assigned_to: user?.name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
   const complete = (outcome) => update({ status: "done", completion_outcome: outcome, completed_by: user?.name, completed_at: new Date().toISOString() });
   const delegate = (name)    => update({ assigned_to: name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
@@ -257,7 +265,7 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
                 </button>
                 {dropdown === "outcome" && (
                   <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 min-w-52">
-                    {OUTCOME_OPTIONS.map(o => (
+                    {outcomeOptions.map(o => (
                       <button key={o.value} onClick={() => complete(o.value)}
                         className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                         <span>{o.emoji}</span>{o.label}
