@@ -106,12 +106,11 @@ export default function Dashboard({ queues, taskData, initialCounts, onPage }) {
         </button>
       </div>
 
-      {/* 4 stat cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      {/* 3 stat cards */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <StatCard label="Outstanding"  value={s.outstanding}     sub="active tasks remaining"                   accent="purple" />
         <StatCard label="Assigned"     value={`${s.assigned}`}   sub={`${s.assignedPct}% of outstanding`}       accent="blue" />
         <StatCard label="Completed Today" value={s.completedToday} sub={`${s.completedYesterday} yesterday`}    accent="green" />
-        <StatCard label="Avg Completion Time" value={s.avgLifecycle} sub="from error to done (today)"           accent="gray" />
       </div>
 
       {/* Outstanding by queue + Errors by date chart */}

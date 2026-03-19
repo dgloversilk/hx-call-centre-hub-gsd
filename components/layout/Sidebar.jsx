@@ -98,13 +98,17 @@ export default function Sidebar({ queues, taskData, page, onPage, user, onReorde
     { total: 0, pending: 0, in_progress: 0, archived: 0 }
   );
 
-  // Build ordered sections with global priority index preserved
+  // Build sections sorted alphabetically by name (priority only affects My Tasks, not sidebar order)
+  const sortedQueues = [...queues]
+    .map((q, idx) => ({ ...q, _priority: idx }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   const sections = [];
-  queues.forEach((q, idx) => {
+  sortedQueues.forEach(q => {
     const g    = q.group ?? null;
     const last = sections[sections.length - 1];
-    if (last && last.group === g) last.queues.push({ ...q, _priority: idx });
-    else sections.push({ group: g, queues: [{ ...q, _priority: idx }] });
+    if (last && last.group === g) last.queues.push(q);
+    else sections.push({ group: g, queues: [q] });
   });
 
   return (

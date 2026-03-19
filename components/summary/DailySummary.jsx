@@ -230,10 +230,9 @@ export default function DailySummary({ queues, taskData }) {
       ) : (
         <>
           {/* Stat cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <StatCard label="Completed"            value={completed.length}          sub="tasks resolved"          accent="green" />
-            <StatCard label="Avg Completion Time"  value={formatDuration(avgLifecycle)} sub="from error to done"   accent="gray" />
-            <StatCard label="Needs Attention"      value={attention.length}          sub="blocked or escalated"    accent="red" />
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <StatCard label="Completed"       value={completed.length}  sub="tasks resolved"       accent="green" />
+            <StatCard label="Needs Attention"  value={attention.length}  sub="blocked or escalated" accent="red" />
           </div>
 
           {/* Charts — side by side */}
@@ -246,24 +245,9 @@ export default function DailySummary({ queues, taskData }) {
                     <BarChart data={byAgent} barSize={24} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
                       <XAxis type="number" tick={{ fontSize: 11 }} />
                       <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
-                      <Tooltip
-                        formatter={(value, name, props) => {
-                          const avg = props.payload.avgMs;
-                          return [`${value} completed${avg ? ` · avg ${formatDuration(avg)}` : ""}`, ""];
-                        }}
-                      />
+                      <Tooltip formatter={(value) => [`${value} completed`, ""]} />
                       <Bar dataKey="count" fill={HX.purple} radius={[0, 4, 4, 0]} name="Completed">
-                        <LabelList
-                          content={({ x, y, width, height, value, index }) => {
-                            const entry = byAgent[index];
-                            const avg = entry?.avgMs ? ` · ${formatDuration(entry.avgMs)}` : "";
-                            return (
-                              <text x={x + width + 6} y={y + height / 2} dy={4} fontSize={11} fill="#374151" fontWeight={600}>
-                                {value}{avg}
-                              </text>
-                            );
-                          }}
-                        />
+                        <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 600, fill: "#374151" }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -276,24 +260,9 @@ export default function DailySummary({ queues, taskData }) {
                     <BarChart data={byQueue} barSize={24} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
                       <XAxis type="number" tick={{ fontSize: 11 }} />
                       <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
-                      <Tooltip
-                        formatter={(value, name, props) => {
-                          const avg = props.payload.avgMs;
-                          return [`${value} completed${avg ? ` · avg ${formatDuration(avg)}` : ""}`, ""];
-                        }}
-                      />
+                      <Tooltip formatter={(value) => [`${value} completed`, ""]} />
                       <Bar dataKey="count" fill={HX.green} radius={[0, 4, 4, 0]} name="Completed">
-                        <LabelList
-                          content={({ x, y, width, height, value, index }) => {
-                            const entry = byQueue[index];
-                            const avg = entry?.avgMs ? ` · ${formatDuration(entry.avgMs)}` : "";
-                            return (
-                              <text x={x + width + 6} y={y + height / 2} dy={4} fontSize={11} fill="#374151" fontWeight={600}>
-                                {value}{avg}
-                              </text>
-                            );
-                          }}
-                        />
+                        <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 600, fill: "#374151" }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>

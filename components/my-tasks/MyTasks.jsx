@@ -644,43 +644,6 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
           </button>
         </div>
 
-        {/* Stats row */}
-        <div className="flex items-stretch gap-3 mb-4">
-          <Chip count={stats.doneToday} label="Done today"     color={HX.green}   bg={HX.greenPale}  />
-          <Chip count={stats.inProgress} label="In progress"   color={HX.blue}    bg={HX.bluePale}   />
-          <Chip count={stats.attention}  label="⚠ Attention"   color={HX.red}     bg={HX.redPale}    onClick={() => setQueueFilter(null)} active={false} />
-          <Chip count={stats.pending}    label="Pending"        color="#4B5563"    bg="#F3F4F6"       />
-
-          {/* Progress bar */}
-          <div className="flex-1 flex flex-col justify-center px-4 py-2 rounded-xl bg-gray-50 border border-gray-100 min-w-0">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-gray-500">Today's progress</span>
-              <span className="text-xs font-bold" style={{ color: HX.purple }}>{stats.pct}%</span>
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${stats.pct}%`, background: `linear-gradient(90deg, ${HX.purple}, ${HX.green})` }} />
-            </div>
-            {/* Urgency breakdown */}
-            <div className="flex gap-3 mt-1.5">
-              {stats.overdue > 0 && (
-                <span className="text-xs font-medium" style={{ color: HX.red }}>⬤ {stats.overdue} overdue</span>
-              )}
-              {stats.today > 0 && (
-                <span className="text-xs font-medium" style={{ color: "#F59E0B" }}>⬤ {stats.today} today</span>
-              )}
-              {stats.future > 0 && (
-                <span className="text-xs font-medium text-gray-400">⬤ {stats.future} upcoming</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Manager team strip */}
-        {manager && (
-          <TeamStrip queues={queues} taskData={taskData} currentUser={user} />
-        )}
-
         {/* Queue filter chips */}
         <QueueFilter
           queues={queues}
