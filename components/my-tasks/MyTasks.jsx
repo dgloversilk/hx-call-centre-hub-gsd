@@ -406,11 +406,10 @@ function AvailableSection({ queues, taskData, user, updateTask, manager, onClaim
         .forEach(t => flat.push({ task: t, queue: q, priority }));
     });
     return flat.sort((a, b) => {
-      const [, da, pa] = sortKey(a.task, a.priority);
-      const [, db, pb] = sortKey(b.task, b.priority);
-      if (pa !== pb) return pa - pb;
-      if (da !== db) return da.localeCompare(db);
-      return 0;
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      const da = (taskDate(a.task) ?? "9999").slice(0, 10);
+      const db = (taskDate(b.task) ?? "9999").slice(0, 10);
+      return da.localeCompare(db);
     }).slice(0, 8);
   }, [queues, taskData]);
 
@@ -525,7 +524,7 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
     }, user);
   }, [onUpdateTask, user]);
 
-  // All MY tasks, globally sorted
+  // All MY tasks, globally sorted: urgency → queue priority → date
   const allTasks = useMemo(() => {
     const flat = [];
     queues.forEach((q, priority) => {
@@ -536,9 +535,10 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
     return flat.sort((a, b) => {
       const [ua, da, pa] = sortKey(a.task, a.priority);
       const [ub, db, pb] = sortKey(b.task, b.priority);
-      if (ua !== ub) return ua - ub;
-      if (da !== db) return da.localeCompare(db);
-      return pa - pb;
+      if (ua !== ub) return ua - ub;  // urgency first (blocked > in_progress > pending)
+      if (pa !== pb) return pa - pb;  // then queue priority
+      if (da !== db) return da.localeCompare(db); // then date
+      return 0;
     });
   }, [queues, taskData, user]);
 
