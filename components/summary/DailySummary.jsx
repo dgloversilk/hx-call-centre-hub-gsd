@@ -62,7 +62,11 @@ export default function DailySummary({ queues, taskData }) {
 
   // Completed: archived tasks whose completed_at falls in the date range (matches Dashboard logic)
   const completed = useMemo(() =>
-    allTasks.filter(t => t.archived && t.completed_at && inRange(t.completed_at)),
+    allTasks.filter(t => {
+      if (!t.archived || !t.completed_at) return false;
+      const d = toDateStr(new Date(t.completed_at));
+      return d >= fromDate && d <= toDate;
+    }),
   [allTasks, fromDate, toDate]);
 
   // Attention: active tasks with blocked/escalated status (live snapshot, not date-filtered)
