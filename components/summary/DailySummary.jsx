@@ -51,20 +51,24 @@ export default function DailySummary({ queues, taskData }) {
     ? new Date(fromDate + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : `${new Date(fromDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} — ${new Date(toDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
-  const taskDate = (t) => t.status_updated_at ?? t.completed_at ?? t.archived_at ?? null;
-  const agentOf  = (t) => t.status_updated_by ?? t.completed_by ?? t.archived_by ?? t.assigned_to ?? "Unknown";
+  const agentOf  = (t) => t.completed_by ?? t.status_updated_by ?? t.archived_by ?? t.assigned_to ?? "Unknown";
 
-  // Date-range filtered tasks
-  const updated = useMemo(() =>
+  // All tasks across all queues with queue metadata
+  const allTasks = useMemo(() =>
     queues.flatMap(q =>
-      (taskData[q.id] ?? [])
-        .filter(t => inRange(taskDate(t)))
-        .map(t => ({ ...t, queueName: q.name, queueIcon: q.icon }))
+      (taskData[q.id] ?? []).map(t => ({ ...t, queueName: q.name, queueIcon: q.icon }))
     ),
-  [queues, taskData, fromDate, toDate]);
+  [queues, taskData]);
 
-  const completed  = updated.filter(t => t.status === "completed" || t.status === "done");
-  const attention  = updated.filter(t => t.status === "blocked" || t.status === "escalated");
+  // Completed: archived tasks whose completed_at falls in the date range (matches Dashboard logic)
+  const completed = useMemo(() =>
+    allTasks.filter(t => t.archived && t.completed_at && inRange(t.completed_at)),
+  [allTasks, fromDate, toDate]);
+
+  // Attention: active tasks with blocked/escalated status (live snapshot, not date-filtered)
+  const attention = useMemo(() =>
+    allTasks.filter(t => !t.archived && (t.status === "blocked" || t.status === "escalated")),
+  [allTasks]);
 
   // Avg lifecycle time
   const avgLifecycle = useMemo(() => {
@@ -128,7 +132,7 @@ export default function DailySummary({ queues, taskData }) {
       .map(([name, data]) => ({ name, ...data }));
   }, [queues, taskData]);
 
-  const noActivity = updated.length === 0;
+  const noActivity = completed.length === 0 && attention.length === 0;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-gray-50">

@@ -135,7 +135,7 @@ export default function Sidebar({ queues, taskData, page, onPage, user, onReorde
       {/* ── Navigation ───────────────────────────────────────────────────── */}
       <div className="p-4 border-b border-gray-700 space-y-1">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Navigation</p>
-        <NavButton label="My Tasks" icon="✅" active={page === "my_tasks"} onClick={() => onPage("my_tasks")} />
+        <NavButton label="My Tasks" icon="📋" active={page === "my_tasks"} onClick={() => onPage("my_tasks")} />
         {isManager && <>
           <NavButton label="Dashboard"      icon="📊" active={page === "dashboard"}      onClick={() => onPage("dashboard")} />
           <NavButton label="Team Performance" icon="👥" active={page === "daily_summary"}  onClick={() => onPage("daily_summary")} />
