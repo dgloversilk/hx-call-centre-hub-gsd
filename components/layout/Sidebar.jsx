@@ -98,18 +98,33 @@ export default function Sidebar({ queues, taskData, page, onPage, user, onReorde
     { total: 0, pending: 0, in_progress: 0, archived: 0 }
   );
 
-  // Build sections sorted alphabetically by name (priority only affects My Tasks, not sidebar order)
-  const sortedQueues = [...queues]
-    .map((q, idx) => ({ ...q, _priority: idx }))
+  // Build sections: group queues together, sort by group name then by queue name within.
+  // Priority only affects My Tasks ordering, not sidebar order.
+  const withPriority = queues.map((q, idx) => ({ ...q, _priority: idx }));
+
+  // Group queues by their group key
+  const groupMap = {};
+  withPriority.forEach(q => {
+    const g = q.group ?? `__ungrouped__${q.id}`;
+    if (!groupMap[g]) groupMap[g] = [];
+    groupMap[g].push(q);
+  });
+
+  // Sort within each group by name
+  Object.values(groupMap).forEach(arr => arr.sort((a, b) => a.name.localeCompare(b.name)));
+
+  // Build sections: named groups first (sorted), then ungrouped queues (sorted by name)
+  const sections = [];
+  const namedGroups = Object.entries(groupMap)
+    .filter(([g]) => !g.startsWith("__ungrouped__"))
+    .sort(([a], [b]) => a.localeCompare(b));
+  const ungrouped = Object.entries(groupMap)
+    .filter(([g]) => g.startsWith("__ungrouped__"))
+    .map(([, arr]) => arr[0])
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const sections = [];
-  sortedQueues.forEach(q => {
-    const g    = q.group ?? null;
-    const last = sections[sections.length - 1];
-    if (last && last.group === g) last.queues.push(q);
-    else sections.push({ group: g, queues: [q] });
-  });
+  namedGroups.forEach(([group, qs]) => sections.push({ group, queues: qs }));
+  ungrouped.forEach(q => sections.push({ group: null, queues: [q] }));
 
   return (
     <div
