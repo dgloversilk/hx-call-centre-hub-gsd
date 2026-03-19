@@ -509,9 +509,10 @@ function AvailableSection({ queues, taskData, user, updateTask, manager, onClaim
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function MyTasks({ queues, taskData, user, onUpdateTask, onNavigateToQueue }) {
-  const [selected,    setSelected]    = useState(null);
-  const [notesTask,   setNotesTask]   = useState(null);
-  const [panelOpen,   setPanelOpen]   = useState(false);
+  const [selected,       setSelected]       = useState(null);
+  const [notesTask,      setNotesTask]      = useState(null);
+  const [panelOpen,      setPanelOpen]      = useState(false);
+  const [panelExpanded,  setPanelExpanded]  = useState(false);
   const [queueFilter, setQueueFilter] = useState(null);
   const manager = isManager(user);
 
@@ -657,7 +658,8 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
       {/* ── Main content area (flex row) ──────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 gap-0">
 
-        {/* Left: task list */}
+        {/* Left: task list — hidden when panel is expanded */}
+        {!(panelExpanded && panelOpen && liveSelected) && (
         <div className="flex-1 min-w-0 overflow-y-auto pr-0">
 
           {/* Spotlight card */}
@@ -744,18 +746,21 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
             }}
           />
         </div>
+        )}
 
-        {/* Right: detail panel */}
+        {/* Right: detail panel (sidebar or expanded) */}
         {liveSelected && panelOpen && (
-          <div className="w-[480px] flex-shrink-0 overflow-y-auto ml-4">
+          <div className={`${panelExpanded ? "flex-1" : "w-[480px]"} flex-shrink-0 overflow-y-auto ${panelExpanded ? "" : "ml-4"}`}>
             <TaskDetailPanel
               task={liveSelected.task}
               queue={liveSelected.queue}
               user={user}
               allTasks={taskData[liveSelected.queue.id] ?? []}
               onUpdateTask={(taskId, updates) => updateTask(liveSelected.queue.id, taskId, updates)}
-              onClose={() => setPanelOpen(false)}
+              onClose={() => { setPanelOpen(false); setPanelExpanded(false); }}
               onOpenNotes={(t) => openNotes(t, liveSelected.queue)}
+              expanded={panelExpanded}
+              onToggleExpand={() => setPanelExpanded(e => !e)}
             />
           </div>
         )}

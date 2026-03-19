@@ -142,7 +142,7 @@ function Section({ label, fields, task }) {
 
 const BTN = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:shadow-sm";
 
-export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onUpdateTask, user }) {
+export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onUpdateTask, user, expanded = false, onToggleExpand }) {
   if (!task) return null;
 
   const [dropdown, setDropdown] = useState(null);
@@ -187,7 +187,7 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
     : (task[queue.primaryKey] ?? task[(queue.displayCols ?? [])[0]] ?? task._id);
 
   return (
-    <div className="w-[480px] flex-shrink-0 flex flex-col min-h-0 bg-white border-l-[3px] shadow-lg"
+    <div className={`${expanded ? "flex-1" : "w-[480px]"} flex-shrink-0 flex flex-col min-h-0 bg-white border-l-[3px] shadow-lg`}
       style={{ borderLeftColor: HX.purple }}>
 
       {/* Header */}
@@ -206,7 +206,14 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
               {cfg.label}
             </span>
           </div>
-          <button onClick={onClose} className="text-lg leading-none ml-3 mt-0.5 text-gray-400 hover:text-gray-600 transition-colors">✕</button>
+          <div className="flex items-center gap-1 ml-3 mt-0.5">
+            {onToggleExpand && (
+              <button onClick={onToggleExpand} className="text-sm leading-none text-gray-400 hover:text-gray-600 transition-colors p-1" title={expanded ? "Collapse" : "Expand"}>
+                {expanded ? "⊟" : "⊞"}
+              </button>
+            )}
+            <button onClick={onClose} className="text-lg leading-none text-gray-400 hover:text-gray-600 transition-colors p-1">✕</button>
+          </div>
         </div>
       </div>
 

@@ -39,6 +39,7 @@ export default function QueueView({
   const [tab,           setTab]           = useState("work");
   const [notesTask,     setNotesTask]     = useState(null);
   const [detailTaskId,  setDetailTaskId]  = useState(null);
+  const [panelExpanded, setPanelExpanded] = useState(false);
   const [selectMode,    setSelectMode]    = useState(false);
   const [selectedRows,  setSelectedRows]  = useState(new Set());
   const [bulkDelegate,  setBulkDelegate]  = useState(false);
@@ -354,76 +355,81 @@ export default function QueueView({
       {/* Main content + optional detail panel */}
       <div className="flex flex-1 min-h-0">
 
-        {tab === "work" && isLoading && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400">
-            <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
-              style={{ borderColor: `${HX.purpleLight} transparent ${HX.purpleLight} ${HX.purpleLight}` }} />
-            <div className="text-sm font-medium" style={{ color: HX.purple }}>Loading from BigQuery…</div>
-            <div className="text-xs text-gray-400">This may take up to 30 seconds</div>
-          </div>
-        )}
-
-        {tab === "work" && !isLoading && (
-          <TaskTable
-            queue={queueWithKeyCols}
-            tasks={filtered}
-            selectedTaskId={detailTask?._id}
-            onRowClick={handleRowClick}
-            onUpdateTask={(taskId, updates) => updateOne(taskId, updates)}
-            onOpenNotes={setNotesTask}
-            onArchive={taskId => onArchiveTask(queue.id, taskId, user)}
-            selectMode={selectMode}
-            selectedRows={selectedRows}
-            onSelectRow={handleSelectRow}
-            onSelectAll={handleSelectAll}
-            user={user}
-          />
-        )}
-
-        {tab === "flat" && (
-          <div className="flex-1 overflow-auto">
-            <div className="px-4 py-2 border-b text-xs font-medium"
-              style={{ background: HX.yellowLight, color: "#7A6200", borderColor: HX.yellowDark }}>
-              All {allCols.length} columns · {activeTasks.length} active rows · Raw flat file view
+        {/* Left content — hidden when panel is expanded */}
+        {!(panelExpanded && detailTask && tab === "work") && (<>
+          {tab === "work" && isLoading && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400">
+              <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
+                style={{ borderColor: `${HX.purpleLight} transparent ${HX.purpleLight} ${HX.purpleLight}` }} />
+              <div className="text-sm font-medium" style={{ color: HX.purple }}>Loading from BigQuery…</div>
+              <div className="text-xs text-gray-400">This may take up to 30 seconds</div>
             </div>
-            <table className="w-full text-xs border-collapse min-w-max">
-              <thead className="sticky top-0 z-10" style={{ background: HX.purple }}>
-                <tr>
-                  {allCols.map(k => (
-                    <th key={k} className="px-3 py-2.5 text-left font-mono font-medium whitespace-nowrap border-r text-xs"
-                      style={{ color: HX.purpleLight, borderColor: HX.purpleDark }}>{k}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 font-mono">
-                {activeTasks.map((task, idx) => (
-                  <tr key={task._id} className={idx % 2 === 1 ? "bg-gray-50" : ""}
-                    onMouseEnter={e => { e.currentTarget.style.background = HX.purplePale; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 1 ? "#F9FAFB" : ""; }}>
+          )}
+
+          {tab === "work" && !isLoading && (
+            <TaskTable
+              queue={queueWithKeyCols}
+              tasks={filtered}
+              selectedTaskId={detailTask?._id}
+              onRowClick={handleRowClick}
+              onUpdateTask={(taskId, updates) => updateOne(taskId, updates)}
+              onOpenNotes={setNotesTask}
+              onArchive={taskId => onArchiveTask(queue.id, taskId, user)}
+              selectMode={selectMode}
+              selectedRows={selectedRows}
+              onSelectRow={handleSelectRow}
+              onSelectAll={handleSelectAll}
+              user={user}
+            />
+          )}
+
+          {tab === "flat" && (
+            <div className="flex-1 overflow-auto">
+              <div className="px-4 py-2 border-b text-xs font-medium"
+                style={{ background: HX.yellowLight, color: "#7A6200", borderColor: HX.yellowDark }}>
+                All {allCols.length} columns · {activeTasks.length} active rows · Raw flat file view
+              </div>
+              <table className="w-full text-xs border-collapse min-w-max">
+                <thead className="sticky top-0 z-10" style={{ background: HX.purple }}>
+                  <tr>
                     {allCols.map(k => (
-                      <td key={k} className="px-3 py-2 text-gray-700 whitespace-nowrap border-r border-gray-100 max-w-48 truncate">
-                        {String(task[k] ?? "")}
-                      </td>
+                      <th key={k} className="px-3 py-2.5 text-left font-mono font-medium whitespace-nowrap border-r text-xs"
+                        style={{ color: HX.purpleLight, borderColor: HX.purpleDark }}>{k}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-mono">
+                  {activeTasks.map((task, idx) => (
+                    <tr key={task._id} className={idx % 2 === 1 ? "bg-gray-50" : ""}
+                      onMouseEnter={e => { e.currentTarget.style.background = HX.purplePale; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 1 ? "#F9FAFB" : ""; }}>
+                      {allCols.map(k => (
+                        <td key={k} className="px-3 py-2 text-gray-700 whitespace-nowrap border-r border-gray-100 max-w-48 truncate">
+                          {String(task[k] ?? "")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        {tab === "analysis" && (
-          <AnalysisPanel queue={queue} tasks={activeTasks} initialCount={initialCount} />
-        )}
+          {tab === "analysis" && (
+            <AnalysisPanel queue={queue} tasks={activeTasks} initialCount={initialCount} />
+          )}
+        </>)}
 
         {detailTask && tab === "work" && (
           <TaskDetailPanel
             task={detailTask}
             queue={queue}
             user={user}
-            onClose={() => setDetailTaskId(null)}
+            onClose={() => { setDetailTaskId(null); setPanelExpanded(false); }}
             onOpenNotes={(t) => setNotesTask(t)}
             onUpdateTask={(taskId, updates) => updateOne(taskId, updates)}
+            expanded={panelExpanded}
+            onToggleExpand={() => setPanelExpanded(e => !e)}
           />
         )}
       </div>
