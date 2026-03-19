@@ -784,7 +784,7 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
 
         {/* Right: detail panel */}
         {liveSelected && panelOpen && (
-          <div className="w-96 flex-shrink-0 overflow-y-auto ml-4">
+          <div className="w-[480px] flex-shrink-0 overflow-y-auto ml-4">
             <TaskDetailPanel
               task={liveSelected.task}
               queue={liveSelected.queue}

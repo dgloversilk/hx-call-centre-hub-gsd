@@ -1,29 +1,80 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { HX } from "@/lib/brand";
 
-export default function QueuePriority({ queues, taskData, onReorder }) {
+export default function QueuePriority({ queues, taskData, onReorder, onMove }) {
+  const [dragIdx, setDragIdx]   = useState(null);
+  const [overIdx, setOverIdx]   = useState(null);
+  const dragRef = useRef(null);
+
+  const handleDragStart = (idx) => (e) => {
+    setDragIdx(idx);
+    dragRef.current = idx;
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (idx) => (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (idx !== overIdx) setOverIdx(idx);
+  };
+
+  const handleDrop = (dropIdx) => (e) => {
+    e.preventDefault();
+    const fromIdx = dragRef.current;
+    if (fromIdx !== null && fromIdx !== dropIdx) {
+      onMove(fromIdx, dropIdx);
+    }
+    setDragIdx(null);
+    setOverIdx(null);
+    dragRef.current = null;
+  };
+
+  const handleDragEnd = () => {
+    setDragIdx(null);
+    setOverIdx(null);
+    dragRef.current = null;
+  };
+
   return (
     <div className="max-w-lg">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Queue Priority</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Drag queues into the order agents should work through them. #1 appears at the top of every agent's My Tasks list.
+          Drag queues into the order agents should work through them. #1 appears at the top of every agent's task list.
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {queues.map((q, idx) => {
           const tasks   = taskData[q.id] ?? [];
           const active  = tasks.filter(t => !t.archived);
           const pending = active.filter(t => t.status === "pending").length;
           const attn    = active.filter(t => t.status === "blocked" || t.status === "escalated").length;
+          const isDragging = dragIdx === idx;
+          const isOver     = overIdx === idx && dragIdx !== idx;
 
           return (
             <div
               key={q.id}
-              className="flex items-center gap-4 bg-white rounded-xl border border-gray-200 px-5 py-4"
+              draggable
+              onDragStart={handleDragStart(idx)}
+              onDragOver={handleDragOver(idx)}
+              onDrop={handleDrop(idx)}
+              onDragEnd={handleDragEnd}
+              className="flex items-center gap-4 bg-white rounded-xl border-2 px-5 py-4 cursor-grab active:cursor-grabbing transition-all select-none"
+              style={{
+                opacity: isDragging ? 0.4 : 1,
+                borderColor: isOver ? HX.purple : "#E5E7EB",
+                borderTopColor: isOver ? HX.purple : "#E5E7EB",
+                background: isOver ? HX.purplePale : "white",
+                transform: isDragging ? "scale(0.98)" : "scale(1)",
+              }}
             >
+              {/* Drag handle */}
+              <span className="text-gray-300 text-lg flex-shrink-0 select-none" title="Drag to reorder">⠿</span>
+
               {/* Priority number */}
               <span
                 className="text-lg font-black w-8 text-center flex-shrink-0"
@@ -41,30 +92,6 @@ export default function QueuePriority({ queues, taskData, onReorder }) {
                   {pending > 0 && <span>· {pending} pending</span>}
                   {attn > 0 && <span style={{ color: "#B91C1C" }}>· {attn} needs attention</span>}
                 </div>
-              </div>
-
-              {/* Move controls */}
-              <div className="flex flex-col gap-1 flex-shrink-0">
-                <button
-                  onClick={() => onReorder(q.id, -1)}
-                  disabled={idx === 0}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-25"
-                  style={{ borderColor: HX.purpleLight, color: HX.purple }}
-                  onMouseEnter={e => { if (idx !== 0) e.currentTarget.style.background = HX.purplePale; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = ""; }}
-                >
-                  ▲ Up
-                </button>
-                <button
-                  onClick={() => onReorder(q.id, 1)}
-                  disabled={idx === queues.length - 1}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-25"
-                  style={{ borderColor: HX.purpleLight, color: HX.purple }}
-                  onMouseEnter={e => { if (idx !== queues.length - 1) e.currentTarget.style.background = HX.purplePale; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = ""; }}
-                >
-                  ▼ Down
-                </button>
               </div>
             </div>
           );

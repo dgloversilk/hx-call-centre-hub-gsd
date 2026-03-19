@@ -41,6 +41,7 @@ export default function Page() {
     addTask,
     addCustomField,
     reorderQueue,
+    moveQueue,
   } = useTaskData();
 
   const handleLogin = (u) => {
@@ -115,7 +116,7 @@ export default function Page() {
 
           {page === "queue_priority" && isManager(user) && (
             <div className="flex-1 overflow-y-auto p-6">
-              <QueuePriority queues={queues} taskData={taskData} onReorder={reorderQueue} />
+              <QueuePriority queues={queues} taskData={taskData} onReorder={reorderQueue} onMove={moveQueue} />
             </div>
           )}
 

@@ -1,21 +1,33 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, Cell } from "recharts";
 import { HX } from "@/lib/brand";
 import StatCard from "@/components/ui/StatCard";
-import StatusBadge from "@/components/ui/StatusBadge";
 
 function toDateStr(date) {
-  return date.toLocaleDateString("en-CA"); // YYYY-MM-DD
+  return date.toLocaleDateString("en-CA");
 }
 
-// Status display config for workload breakdown
+function formatDuration(ms) {
+  if (!ms || ms <= 0) return "—";
+  const mins = Math.round(ms / 60000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function lifecycleMs(task) {
+  if (!task.error_time || !task.completed_at) return null;
+  const ms = new Date(task.completed_at) - new Date(task.error_time);
+  return ms > 0 ? ms : null;
+}
+
 const WORKLOAD_STATUS = [
-  { key: "in_progress", label: "In progress",    color: "#7C3AED" },
-  { key: "pending",     label: "Pending",        color: "#D97706" },
-  { key: "blocked",     label: "Needs Attention", color: "#DC2626" },
-  { key: "escalated",   label: "Needs Attention", color: "#DC2626" },
+  { key: "in_progress", label: "In progress",     color: HX.blue },
+  { key: "pending",     label: "Pending",          color: "#D97706" },
+  { key: "blocked",     label: "Needs Attention",  color: HX.red },
+  { key: "escalated",   label: "Needs Attention",  color: HX.red },
 ];
 
 export default function DailySummary({ queues, taskData }) {
@@ -25,13 +37,10 @@ export default function DailySummary({ queues, taskData }) {
   const [fromDate, setFromDate] = useState(today);
   const [toDate,   setToDate]   = useState(today);
 
-  // Clamp: from can't be after to, to can't be before from
   const handleFrom = (val) => { setFromDate(val); if (val > toDate) setToDate(val); };
   const handleTo   = (val) => { setToDate(val);   if (val < fromDate) setFromDate(val); };
+  const setPreset  = (from, to) => { setFromDate(from); setToDate(to); };
 
-  const setPreset = (from, to) => { setFromDate(from); setToDate(to); };
-
-  // Filter tasks whose status_updated_at falls within [fromDate, toDate]
   const inRange = (dateStr) => {
     if (!dateStr) return false;
     const d = toDateStr(new Date(dateStr));
@@ -40,12 +49,12 @@ export default function DailySummary({ queues, taskData }) {
 
   const rangeLabel = fromDate === toDate
     ? new Date(fromDate + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-    : `${new Date(fromDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} — ${new Date(toDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+    : `${new Date(fromDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} — ${new Date(toDate + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
-  // Use status_updated_at for in-progress/blocked/escalated tasks,
-  // and completed_at / archived_at for done tasks
   const taskDate = (t) => t.status_updated_at ?? t.completed_at ?? t.archived_at ?? null;
+  const agentOf  = (t) => t.status_updated_by ?? t.completed_by ?? t.archived_by ?? t.assigned_to ?? "Unknown";
 
+  // Date-range filtered tasks
   const updated = useMemo(() =>
     queues.flatMap(q =>
       (taskData[q.id] ?? [])
@@ -56,26 +65,53 @@ export default function DailySummary({ queues, taskData }) {
 
   const completed  = updated.filter(t => t.status === "completed" || t.status === "done");
   const attention  = updated.filter(t => t.status === "blocked" || t.status === "escalated");
-  const inProgress = updated.filter(t => t.status === "in_progress");
 
-  // Agent name: prefer whoever last changed status, then assigned agent
-  const agentOf = (t) => t.status_updated_by ?? t.completed_by ?? t.archived_by ?? t.assigned_to ?? "Unknown";
+  // Avg lifecycle time
+  const avgLifecycle = useMemo(() => {
+    const times = completed.map(lifecycleMs).filter(Boolean);
+    if (!times.length) return null;
+    return times.reduce((a, b) => a + b, 0) / times.length;
+  }, [completed]);
 
+  // Completions by agent (with avg time)
   const byAgent = useMemo(() => {
     const map = {};
-    completed.forEach(t => { const n = agentOf(t); map[n] = (map[n] ?? 0) + 1; });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
+    completed.forEach(t => {
+      const n = agentOf(t);
+      if (!map[n]) map[n] = { count: 0, totalMs: 0, withTime: 0 };
+      map[n].count++;
+      const ms = lifecycleMs(t);
+      if (ms) { map[n].totalMs += ms; map[n].withTime++; }
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([name, d]) => ({
+        name,
+        count: d.count,
+        avgMs: d.withTime > 0 ? d.totalMs / d.withTime : null,
+      }));
   }, [completed]);
 
+  // Completions by queue (with avg time)
   const byQueue = useMemo(() => {
     const map = {};
-    completed.forEach(t => { map[t.queueName] = (map[t.queueName] ?? 0) + 1; });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name: name.replace(" Bookings", ""), count }));
+    completed.forEach(t => {
+      const n = t.queueName;
+      if (!map[n]) map[n] = { count: 0, totalMs: 0, withTime: 0 };
+      map[n].count++;
+      const ms = lifecycleMs(t);
+      if (ms) { map[n].totalMs += ms; map[n].withTime++; }
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([name, d]) => ({
+        name: name.replace(" Bookings", ""),
+        count: d.count,
+        avgMs: d.withTime > 0 ? d.totalMs / d.withTime : null,
+      }));
   }, [completed]);
 
-  const noActivity = updated.length === 0;
-
-  // ── Live workload snapshot (not date-range filtered) ──────────────────────
+  // Live workload (not date-filtered)
   const workload = useMemo(() => {
     const map = {};
     queues.forEach(q => {
@@ -92,23 +128,23 @@ export default function DailySummary({ queues, taskData }) {
       .map(([name, data]) => ({ name, ...data }));
   }, [queues, taskData]);
 
+  const noActivity = updated.length === 0;
+
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
 
-      {/* Heading + date filter */}
+      {/* Header + date filter */}
       <div className="mb-6 flex items-start justify-between gap-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Daily Summary</h2>
+          <h2 className="text-xl font-bold text-gray-900">Team Performance</h2>
           <p className="text-gray-500 text-sm mt-0.5">{rangeLabel}</p>
         </div>
 
-        {/* Calendar filter */}
         <div className="flex flex-col gap-2 items-end">
-          {/* Preset buttons */}
           <div className="flex gap-2">
             {[
-              { label: "Today",     from: today,     to: today     },
-              { label: "Yesterday", from: yesterday,  to: yesterday  },
+              { label: "Today",     from: today,     to: today },
+              { label: "Yesterday", from: yesterday, to: yesterday },
               { label: "Last 7d",   from: toDateStr(new Date(Date.now() - 6 * 86_400_000)), to: today },
               { label: "This month",from: today.slice(0, 7) + "-01", to: today },
             ].map(({ label, from, to }) => {
@@ -124,83 +160,56 @@ export default function DailySummary({ queues, taskData }) {
               );
             })}
           </div>
-
-          {/* Date range inputs */}
           <div className="flex items-center gap-2 text-sm">
             <input type="date" value={fromDate} max={toDate} onChange={e => handleFrom(e.target.value)}
-              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none"
-              onFocus={e => { e.currentTarget.style.borderColor = HX.purple; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "#E5E7EB"; }} />
+              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1"
+              style={{ "--tw-ring-color": HX.purple }} />
             <span className="text-gray-400">→</span>
             <input type="date" value={toDate} min={fromDate} onChange={e => handleTo(e.target.value)}
-              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none"
-              onFocus={e => { e.currentTarget.style.borderColor = HX.purple; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "#E5E7EB"; }} />
+              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1"
+              style={{ "--tw-ring-color": HX.purple }} />
           </div>
         </div>
       </div>
 
-      {/* ── Team Workload — always shown, live snapshot ─────────────────── */}
+      {/* Team Workload — live snapshot */}
       <div className="mb-8">
         <div className="flex items-baseline gap-2 mb-3">
           <h3 className="font-semibold text-gray-800 text-base">Team Workload</h3>
-          <span className="text-xs text-gray-400">Live · tasks currently assigned</span>
+          <span className="text-xs text-gray-400">Live snapshot</span>
         </div>
 
         {workload.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
-            No tasks are currently assigned to any agent.
+            No tasks currently assigned.
           </div>
         ) : (
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {workload.map(({ name, total, byStatus }) => {
               const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-              // Build a mini stacked bar
               const segments = WORKLOAD_STATUS.filter(s => byStatus[s.key]);
               return (
-                <div key={name}
-                  className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3"
-                >
-                  {/* Agent header */}
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                      style={{ background: HX.purple }}
-                    >
+                <div key={name} className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                      style={{ background: HX.purple }}>
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-800 text-sm truncate">{name}</div>
-                      <div className="text-xs text-gray-400">{total} active task{total !== 1 ? "s" : ""}</div>
-                    </div>
-                    <div
-                      className="text-2xl font-bold tabular-nums"
-                      style={{ color: HX.purple }}
-                    >
-                      {total}
+                      <div className="text-xs text-gray-400">{total} active</div>
                     </div>
                   </div>
-
-                  {/* Stacked bar */}
-                  <div className="h-2 rounded-full overflow-hidden flex gap-px bg-gray-100">
+                  <div className="h-1.5 rounded-full overflow-hidden flex gap-px bg-gray-100 mb-2">
                     {segments.map(s => (
-                      <div
-                        key={s.key}
-                        title={`${s.label}: ${byStatus[s.key]}`}
-                        style={{
-                          flex: byStatus[s.key],
-                          background: s.color,
-                          minWidth: 4,
-                        }}
-                      />
+                      <div key={s.key} title={`${s.label}: ${byStatus[s.key]}`}
+                        style={{ flex: byStatus[s.key], background: s.color, minWidth: 3 }} />
                     ))}
                   </div>
-
-                  {/* Status breakdown */}
-                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                     {segments.map(s => (
                       <span key={s.key} className="text-xs flex items-center gap-1 text-gray-500">
-                        <span className="inline-block w-2 h-2 rounded-sm" style={{ background: s.color }} />
+                        <span className="inline-block w-1.5 h-1.5 rounded-sm" style={{ background: s.color }} />
                         {byStatus[s.key]} {s.label}
                       </span>
                     ))}
@@ -222,24 +231,39 @@ export default function DailySummary({ queues, taskData }) {
         <>
           {/* Stat cards */}
           <div className="grid grid-cols-3 gap-4 mb-6">
-            <StatCard label="Completed"       value={completed.length}  sub="tasks resolved" accent="green"  />
-            <StatCard label="In Progress"     value={inProgress.length} sub="picked up"      accent="purple" />
-            <StatCard label="Needs Attention" value={attention.length}  sub="blocked or escalated" accent="red" />
+            <StatCard label="Completed"            value={completed.length}          sub="tasks resolved"          accent="green" />
+            <StatCard label="Avg Completion Time"  value={formatDuration(avgLifecycle)} sub="from error to done"   accent="gray" />
+            <StatCard label="Needs Attention"      value={attention.length}          sub="blocked or escalated"    accent="red" />
           </div>
 
-          {/* Charts */}
+          {/* Charts — side by side */}
           {(byAgent.length > 0 || byQueue.length > 0) && (
-            <div className="grid grid-cols-2 gap-5 mb-6">
+            <div className="grid grid-cols-2 gap-5">
               {byAgent.length > 0 && (
                 <div className="bg-white rounded-xl border border-gray-200 p-5">
                   <h3 className="font-semibold text-gray-800 mb-4">Completions by Agent</h3>
-                  <ResponsiveContainer width="100%" height={Math.max(180, byAgent.length * 44)}>
-                    <BarChart data={byAgent} barSize={28} layout="vertical">
+                  <ResponsiveContainer width="100%" height={Math.max(160, byAgent.length * 52)}>
+                    <BarChart data={byAgent} barSize={24} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
                       <XAxis type="number" tick={{ fontSize: 11 }} />
-                      <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={90} />
-                      <Tooltip />
+                      <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
+                      <Tooltip
+                        formatter={(value, name, props) => {
+                          const avg = props.payload.avgMs;
+                          return [`${value} completed${avg ? ` · avg ${formatDuration(avg)}` : ""}`, ""];
+                        }}
+                      />
                       <Bar dataKey="count" fill={HX.purple} radius={[0, 4, 4, 0]} name="Completed">
-                        <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 600, fill: HX.purpleDark }} />
+                        <LabelList
+                          content={({ x, y, width, height, value, index }) => {
+                            const entry = byAgent[index];
+                            const avg = entry?.avgMs ? ` · ${formatDuration(entry.avgMs)}` : "";
+                            return (
+                              <text x={x + width + 6} y={y + height / 2} dy={4} fontSize={11} fill="#374151" fontWeight={600}>
+                                {value}{avg}
+                              </text>
+                            );
+                          }}
+                        />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -248,13 +272,28 @@ export default function DailySummary({ queues, taskData }) {
               {byQueue.length > 0 && (
                 <div className="bg-white rounded-xl border border-gray-200 p-5">
                   <h3 className="font-semibold text-gray-800 mb-4">Completions by Queue</h3>
-                  <ResponsiveContainer width="100%" height={Math.max(180, byQueue.length * 44)}>
-                    <BarChart data={byQueue} barSize={28} layout="vertical">
+                  <ResponsiveContainer width="100%" height={Math.max(160, byQueue.length * 52)}>
+                    <BarChart data={byQueue} barSize={24} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
                       <XAxis type="number" tick={{ fontSize: 11 }} />
-                      <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={90} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill={HX.yellow} radius={[0, 4, 4, 0]} name="Completed">
-                        <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 600, fill: "#7A6200" }} />
+                      <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
+                      <Tooltip
+                        formatter={(value, name, props) => {
+                          const avg = props.payload.avgMs;
+                          return [`${value} completed${avg ? ` · avg ${formatDuration(avg)}` : ""}`, ""];
+                        }}
+                      />
+                      <Bar dataKey="count" fill={HX.green} radius={[0, 4, 4, 0]} name="Completed">
+                        <LabelList
+                          content={({ x, y, width, height, value, index }) => {
+                            const entry = byQueue[index];
+                            const avg = entry?.avgMs ? ` · ${formatDuration(entry.avgMs)}` : "";
+                            return (
+                              <text x={x + width + 6} y={y + height / 2} dy={4} fontSize={11} fill="#374151" fontWeight={600}>
+                                {value}{avg}
+                              </text>
+                            );
+                          }}
+                        />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -262,52 +301,6 @@ export default function DailySummary({ queues, taskData }) {
               )}
             </div>
           )}
-
-          {/* Activity log */}
-          <h3 className="font-semibold text-gray-800 mb-3">Activity Log</h3>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date / Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Task Ref</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Queue</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Agent</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {[...updated]
-                  .sort((a, b) => new Date(taskDate(b)) - new Date(taskDate(a)))
-                  .map((task, idx) => {
-                    const ts = taskDate(task);
-                    return (
-                      <tr key={task._id}
-                        className={idx % 2 === 1 ? "bg-gray-50/60" : ""}
-                        onMouseEnter={e => { e.currentTarget.style.background = HX.purplePale; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 1 ? "#F9FAFB" : ""; }}
-                      >
-                        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                          {new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                          {" "}
-                          {new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-gray-700">
-                          {task.chips_reference ?? task.ref ?? task._id}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">
-                          <span className="mr-1">{task.queueIcon}</span>{task.queueName}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700 text-sm">{agentOf(task)}</td>
-                        <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-                        <td className="px-4 py-3 text-gray-500 text-sm max-w-48 truncate">{task.notes || "—"}</td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
         </>
       )}
     </div>

@@ -41,12 +41,12 @@ const SECTIONS = [
 ];
 
 const SECTION_ACCENT = {
-  Booking:  { bg: HX.purplePale,  label: HX.purple,    border: HX.purpleLight },
-  Error:    { bg: HX.redPale,     label: HX.red,        border: HX.redLight   },
-  Supplier: { bg: HX.bluePale,    label: HX.blue,       border: HX.blueLight  },
-  Agent:    { bg: HX.yellowLight, label: "#7A6200",     border: HX.yellowDark },
-  Resolved: { bg: HX.greenPale,   label: HX.greenDark,  border: HX.greenLight },
-  Other:    { bg: "rgba(255,255,255,0.08)", label: "rgba(255,255,255,0.5)", border: "rgba(255,255,255,0.15)" },
+  Error:    { accent: HX.red,       bg: HX.redPale,     label: HX.redDark   },
+  Agent:    { accent: "#D97706",    bg: "#FFFBEB",       label: "#92400E"    },
+  Booking:  { accent: HX.purple,    bg: HX.purplePale,   label: HX.purpleDark },
+  Supplier: { accent: HX.blue,      bg: HX.bluePale,     label: HX.blueDark  },
+  Resolved: { accent: HX.green,     bg: HX.greenPale,    label: HX.greenDark },
+  Other:    { accent: "#9CA3AF",    bg: "#F9FAFB",       label: "#374151"    },
 };
 
 const MONO_KEYS  = new Set(["error_code", "booking_action", "chips_reference"]);
@@ -64,24 +64,19 @@ function formatValue(key, val) {
 
 function FieldRow({ fieldKey, value, label, isFirst }) {
   const val = formatValue(fieldKey, value);
-  const valueColor = ERROR_KEYS.has(fieldKey) ? HX.redLight
-    : fieldKey === "chips_reference"           ? HX.yellow
-    : "rgba(255,255,255,0.9)";
-
   return (
-    <div className="px-3 py-2.5" style={{ borderTop: isFirst ? "none" : "1px solid rgba(255,255,255,0.06)" }}>
-      <div className="text-xs font-semibold mb-0.5" style={{ color: HX.purpleLight }}>
+    <div className={`px-4 py-3 ${isFirst ? "" : "border-t border-gray-100"}`}>
+      <div className="text-xs font-medium text-gray-400 mb-0.5">
         {label ?? fieldKey.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
       </div>
       {val
-        ? <div className={`text-sm break-words leading-snug ${MONO_KEYS.has(fieldKey) ? "font-mono" : ""}`} style={{ color: valueColor }}>{val}</div>
-        : <div className="text-xs italic" style={{ color: "rgba(255,255,255,0.2)" }}>—</div>
+        ? <div className={`text-sm text-gray-900 break-words leading-snug ${MONO_KEYS.has(fieldKey) ? "font-mono font-semibold" : ""} ${ERROR_KEYS.has(fieldKey) ? "font-medium" : ""}`}>{val}</div>
+        : <div className="text-xs text-gray-300 italic">—</div>
       }
     </div>
   );
 }
 
-const YES_NO_CYCLE = { null: "Yes", Yes: "No", No: null };
 const YES_NO_BADGE = {
   Yes: { background: "#ECFDF5", color: "#065F46", border: "1px solid #6EE7B7" },
   No:  { background: "#FEF2F2", color: "#991B1B", border: "1px solid #FCA5A5" },
@@ -92,52 +87,36 @@ function CustomFieldRow({ field, value, isFirst, onChange }) {
   const [draft,   setDraft]   = useState(value ?? "");
 
   return (
-    <div className="px-3 py-2.5" style={{ borderTop: isFirst ? "none" : "1px solid rgba(255,255,255,0.06)" }}>
-      <div className="text-xs font-semibold mb-1.5" style={{ color: HX.purpleLight }}>
-        {field.label}
-      </div>
-
+    <div className={`px-4 py-3 ${isFirst ? "" : "border-t border-gray-100"}`}>
+      <div className="text-xs font-medium text-gray-400 mb-1.5">{field.label}</div>
       {field.type === "yesno" ? (
         <div className="flex gap-2">
           {["Yes", "No"].map(opt => (
-            <button
-              key={opt}
-              onClick={() => onChange(value === opt ? null : opt)}
+            <button key={opt} onClick={() => onChange(value === opt ? null : opt)}
               className="text-xs px-3 py-1 rounded-full font-semibold border transition-all"
-              style={value === opt
-                ? YES_NO_BADGE[opt]
-                : { color: "rgba(255,255,255,0.35)", borderColor: "rgba(255,255,255,0.15)" }}
-            >
+              style={value === opt ? YES_NO_BADGE[opt] : { color: "#9CA3AF", borderColor: "#E5E7EB" }}>
               {opt}
             </button>
           ))}
           {value && (
-            <button onClick={() => onChange(null)} className="text-xs ml-auto opacity-40 hover:opacity-70 transition-opacity"
-              style={{ color: "rgba(255,255,255,0.6)" }}>
-              Clear
-            </button>
+            <button onClick={() => onChange(null)} className="text-xs ml-auto text-gray-400 hover:text-gray-600 transition-colors">Clear</button>
           )}
         </div>
       ) : editing ? (
         <div className="flex gap-2">
-          <input
-            autoFocus
-            value={draft}
+          <input autoFocus value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { onChange(draft); setEditing(false); } if (e.key === "Escape") setEditing(false); }}
-            className="flex-1 text-sm bg-transparent border-b border-white border-opacity-30 outline-none pb-0.5"
-            style={{ color: "rgba(255,255,255,0.9)" }}
-          />
+            className="flex-1 text-sm border-b border-gray-300 outline-none pb-0.5 text-gray-900 bg-transparent" />
           <button onClick={() => { onChange(draft); setEditing(false); }}
             className="text-xs font-semibold" style={{ color: HX.green }}>Save</button>
           <button onClick={() => setEditing(false)}
-            className="text-xs opacity-40 hover:opacity-70" style={{ color: "rgba(255,255,255,0.6)" }}>✕</button>
+            className="text-xs text-gray-400 hover:text-gray-600">✕</button>
         </div>
       ) : (
         <button onClick={() => { setDraft(value ?? ""); setEditing(true); }}
-          className="text-sm text-left w-full group"
-          style={{ color: value ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.25)" }}>
-          <span className="italic">{value || "Click to add…"}</span>
+          className="text-sm text-left w-full group text-gray-700">
+          <span className={value ? "" : "italic text-gray-300"}>{value || "Click to add…"}</span>
           <span className="ml-2 opacity-0 group-hover:opacity-60 text-xs transition-opacity">✎</span>
         </button>
       )}
@@ -148,12 +127,11 @@ function CustomFieldRow({ field, value, isFirst, onChange }) {
 function Section({ label, fields, task }) {
   const accent = SECTION_ACCENT[label] ?? SECTION_ACCENT.Other;
   return (
-    <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${accent.border}` }}>
-      <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
-        style={{ background: accent.bg, color: accent.label, borderBottom: `1px solid ${accent.border}` }}>
+    <div className="rounded-lg overflow-hidden border border-gray-200" style={{ borderLeftWidth: 3, borderLeftColor: accent.accent }}>
+      <div className="px-4 py-2 text-xs font-bold uppercase tracking-widest" style={{ background: accent.bg, color: accent.label }}>
         {label}
       </div>
-      <div style={{ background: "rgba(255,255,255,0.07)" }}>
+      <div className="bg-white">
         {fields.map((key, i) => (
           <FieldRow key={key} fieldKey={key} value={task[key]} label={LABELS[key]} isFirst={i === 0} />
         ))}
@@ -162,12 +140,12 @@ function Section({ label, fields, task }) {
   );
 }
 
-const GHOST_BTN = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80";
+const BTN = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:shadow-sm";
 
 export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onUpdateTask, user }) {
   if (!task) return null;
 
-  const [dropdown, setDropdown] = useState(null); // "status" | "delegate" | null
+  const [dropdown, setDropdown] = useState(null);
   const toggle = (name) => setDropdown(d => d === name ? null : name);
 
   const cfg        = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
@@ -209,18 +187,18 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
     : (task[queue.primaryKey] ?? task[(queue.displayCols ?? [])[0]] ?? task._id);
 
   return (
-    <div className="w-96 flex-shrink-0 flex flex-col min-h-0" style={{ borderLeft: `3px solid ${HX.purple}`, background: "#2D1B5C" }}>
+    <div className="w-[480px] flex-shrink-0 flex flex-col min-h-0 bg-white border-l-[3px] shadow-lg"
+      style={{ borderLeftColor: HX.purple }}>
 
       {/* Header */}
-      <div className="px-5 py-4 flex-shrink-0" style={{ background: HX.purpleDark, borderBottom: `1px solid ${HX.purple}` }}>
+      <div className="px-5 py-4 flex-shrink-0 border-b border-gray-200" style={{ background: HX.purplePale }}>
         <div className="flex items-start justify-between">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-base">{queue.icon}</span>
-              <span className="text-xs font-medium" style={{ color: HX.purpleLight }}>{queue.name}</span>
+              <span className="text-xs font-medium" style={{ color: HX.purple }}>{queue.name}</span>
             </div>
-            <div className="font-bold font-mono text-lg mb-3 px-2 py-1 rounded truncate"
-              style={{ color: HX.yellow, background: "rgba(253,213,6,0.1)", border: "1px solid rgba(253,213,6,0.3)" }}>
+            <div className="font-bold font-mono text-lg mb-3 truncate" style={{ color: HX.purpleDark }}>
               {headerTitle}
             </div>
             <span className="inline-block px-3 py-1 rounded-full text-xs font-bold border"
@@ -228,19 +206,16 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
               {cfg.label}
             </span>
           </div>
-          <button onClick={onClose} className="text-lg leading-none ml-3 mt-0.5 hover:opacity-60 transition-opacity"
-            style={{ color: HX.purpleLight }}>✕</button>
+          <button onClick={onClose} className="text-lg leading-none ml-3 mt-0.5 text-gray-400 hover:text-gray-600 transition-colors">✕</button>
         </div>
       </div>
 
       {/* Action bar */}
       {canAct && (
-        <div className="flex-shrink-0 px-4 py-3 space-y-2"
-          style={{ background: "rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-
+        <div className="flex-shrink-0 px-5 py-3 bg-gray-50 border-b border-gray-200 space-y-2">
           {task.assigned_to && (
-            <div className="text-xs mb-1" style={{ color: HX.purpleLight }}>
-              Claimed by <span className="font-semibold text-white">{task.assigned_to}</span>
+            <div className="text-xs text-gray-500 mb-1">
+              Claimed by <span className="font-semibold text-gray-800">{task.assigned_to}</span>
               {task.assigned_by && task.assigned_by !== task.assigned_to &&
                 <span> · delegated by {task.assigned_by}</span>}
             </div>
@@ -248,13 +223,13 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
 
           <div className="flex gap-2 flex-wrap">
             {unassigned && (
-              <button onClick={claim} className={GHOST_BTN} style={{ background: HX.purple, color: "white" }}>
-                ✋ Claim task
+              <button onClick={claim} className={BTN} style={{ background: HX.purple, color: "white" }}>
+                Claim task
               </button>
             )}
             {(myTask || manager) && !isDone && (
               <div className="relative">
-                <button onClick={() => toggle("status")} className={GHOST_BTN} style={{ background: HX.blue, color: "white" }}>
+                <button onClick={() => toggle("status")} className={BTN} style={{ background: HX.blue, color: "white" }}>
                   Set status ▾
                 </button>
                 {dropdown === "status" && (
@@ -271,9 +246,8 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
             )}
             {manager && (
               <div className="relative">
-                <button onClick={() => toggle("delegate")} className={`${GHOST_BTN} border`}
-                  style={{ borderColor: "rgba(255,255,255,0.3)", color: "rgba(255,255,255,0.8)" }}>
-                  👤 Delegate ▾
+                <button onClick={() => toggle("delegate")} className={`${BTN} border border-gray-300 text-gray-600`}>
+                  Delegate ▾
                 </button>
                 {dropdown === "delegate" && (
                   <div className="absolute bottom-full mb-1 left-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 min-w-44">
@@ -293,29 +267,27 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
         </div>
       )}
 
-      {/* Completion outcome badge */}
+      {/* Done outcome badge */}
       {isDone && task.completion_outcome && (() => {
         const outcome = OUTCOME_OPTIONS.find(o => o.value === task.completion_outcome);
         return (
-          <div className="flex-shrink-0 px-4 py-2 text-xs flex items-center gap-2"
-            style={{ background: "rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-            <span style={{ color: HX.purpleLight }}>Outcome:</span>
-            <span className="font-semibold text-white">{outcome?.emoji} {outcome?.label ?? task.completion_outcome}</span>
+          <div className="flex-shrink-0 px-5 py-2 text-xs flex items-center gap-2 bg-gray-50 border-b border-gray-200">
+            <span className="text-gray-400">Outcome:</span>
+            <span className="font-semibold text-gray-800">{outcome?.emoji} {outcome?.label ?? task.completion_outcome}</span>
           </div>
         );
       })()}
 
       {/* Field sections */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3">
 
-        {/* Custom fields — shown for any queue that has them */}
+        {/* Custom fields */}
         {(queue.customFields ?? []).length > 0 && (
-          <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${HX.purpleLight}` }}>
-            <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
-              style={{ background: HX.purplePale, color: HX.purple, borderBottom: `1px solid ${HX.purpleLight}` }}>
+          <div className="rounded-lg overflow-hidden border border-gray-200" style={{ borderLeftWidth: 3, borderLeftColor: HX.purple }}>
+            <div className="px-4 py-2 text-xs font-bold uppercase tracking-widest" style={{ background: HX.purplePale, color: HX.purple }}>
               Custom Fields
             </div>
-            <div style={{ background: "rgba(255,255,255,0.07)" }}>
+            <div className="bg-white">
               {queue.customFields.map((field, i) => (
                 <CustomFieldRow
                   key={field.key}
@@ -332,12 +304,11 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
         {isBigQuery
           ? SECTIONS.map(s => <Section key={s.label} label={s.label} fields={s.fields} task={task} />)
           : (
-            <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${SECTION_ACCENT.Other.border}` }}>
-              <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
-                style={{ background: SECTION_ACCENT.Other.bg, color: SECTION_ACCENT.Other.label, borderBottom: `1px solid ${SECTION_ACCENT.Other.border}` }}>
+            <div className="rounded-lg overflow-hidden border border-gray-200" style={{ borderLeftWidth: 3, borderLeftColor: SECTION_ACCENT.Other.accent }}>
+              <div className="px-4 py-2 text-xs font-bold uppercase tracking-widest" style={{ background: SECTION_ACCENT.Other.bg, color: SECTION_ACCENT.Other.label }}>
                 Details
               </div>
-              <div style={{ background: "rgba(255,255,255,0.07)" }}>
+              <div className="bg-white">
                 {csvDisplayFields.map((key, i) => (
                   <FieldRow key={key} fieldKey={key} value={task[key]} isFirst={i === 0} />
                 ))}
@@ -347,19 +318,18 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
         }
 
         {/* Notes */}
-        <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${HX.purpleLight}` }}>
-          <div className="px-3 py-1.5 flex items-center justify-between"
-            style={{ background: HX.purplePale, borderBottom: `1px solid ${HX.purpleLight}` }}>
+        <div className="rounded-lg overflow-hidden border border-gray-200" style={{ borderLeftWidth: 3, borderLeftColor: HX.purple }}>
+          <div className="px-4 py-2 flex items-center justify-between" style={{ background: HX.purplePale }}>
             <span className="text-xs font-bold uppercase tracking-widest" style={{ color: HX.purple }}>Notes</span>
-            <button onClick={() => onOpenNotes(task)} className="text-xs px-2.5 py-1 rounded font-semibold"
-              style={{ background: HX.purple, color: "white" }}>
+            <button onClick={() => onOpenNotes(task)} className="text-xs px-2.5 py-1 rounded font-semibold text-white"
+              style={{ background: HX.purple }}>
               {task.notes ? "Edit" : "+ Add"}
             </button>
           </div>
-          <div className="px-3 py-3" style={{ background: "rgba(255,255,255,0.07)" }}>
+          <div className="px-4 py-3 bg-white">
             {task.notes
-              ? <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "rgba(255,255,255,0.85)" }}>{task.notes}</p>
-              : <p className="text-xs italic" style={{ color: "rgba(255,255,255,0.25)" }}>No notes added yet</p>
+              ? <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-800">{task.notes}</p>
+              : <p className="text-xs italic text-gray-300">No notes added yet</p>
             }
           </div>
         </div>
