@@ -138,7 +138,7 @@ export default function Sidebar({ queues, taskData, page, onPage, user, onReorde
         <NavButton label="My Tasks" icon="✅" active={page === "my_tasks"} onClick={() => onPage("my_tasks")} />
         {isManager && <>
           <NavButton label="Dashboard"      icon="📊" active={page === "dashboard"}      onClick={() => onPage("dashboard")} />
-          <NavButton label="Team Performance" icon="📅" active={page === "daily_summary"}  onClick={() => onPage("daily_summary")} />
+          <NavButton label="Team Performance" icon="👥" active={page === "daily_summary"}  onClick={() => onPage("daily_summary")} />
           <NavButton label="Queue Priority" icon="🔢" active={page === "queue_priority"} onClick={() => onPage("queue_priority")} />
           <NavButton label="Upload Tasks"   icon="⬆️" active={page === "upload"}         onClick={() => onPage("upload")} />
         </>}
