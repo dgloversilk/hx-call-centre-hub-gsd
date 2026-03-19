@@ -285,10 +285,6 @@ function QueueButton({ q, s, page, onPage, loadingQueues, indent = false, priori
         <div className="flex items-center gap-2 mb-0.5">
           <span>{q.icon}</span>
           <span className="font-medium truncate flex-1">{q.name}</span>
-          {/* Priority badge */}
-          <span className="text-xs font-bold opacity-40" style={{ color: isActive ? "white" : HX.yellow }}>
-            #{priority + 1}
-          </span>
           {loadingQueues.has(q.id) ? (
             <span className="text-xs opacity-60 animate-pulse">syncing…</span>
           ) : s.archived > 0 && (
@@ -308,23 +304,6 @@ function QueueButton({ q, s, page, onPage, loadingQueues, indent = false, priori
         </div>
       </button>
 
-      {/* Manager reorder controls — visible on hover */}
-      {isManager && onReorder && (
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover/qb:opacity-100 transition-opacity">
-          <button
-            onClick={e => { e.stopPropagation(); onReorder(q.id, -1); }}
-            disabled={priority === 0}
-            className="text-gray-400 hover:text-white disabled:opacity-20 leading-none text-xs px-1"
-            title="Move up"
-          >▲</button>
-          <button
-            onClick={e => { e.stopPropagation(); onReorder(q.id, 1); }}
-            disabled={priority === total - 1}
-            className="text-gray-400 hover:text-white disabled:opacity-20 leading-none text-xs px-1"
-            title="Move down"
-          >▼</button>
-        </div>
-      )}
     </div>
   );
 }
