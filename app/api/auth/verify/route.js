@@ -5,8 +5,8 @@ export async function POST(request) {
   const expected = process.env.ACCESS_CODE;
 
   if (!expected) {
-    // No access code set — allow through (dev mode)
-    return NextResponse.json({ ok: true });
+    // No access code set — block access until one is configured
+    return NextResponse.json({ ok: false }, { status: 401 });
   }
 
   if (code === expected) {
