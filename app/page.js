@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useTaskData }  from "@/lib/useTaskData";
 import { isManager }    from "@/lib/constants";
 
+import AccessCodeScreen from "@/components/auth/AccessCodeScreen";
 import LoginScreen      from "@/components/auth/LoginScreen";
 import Navbar           from "@/components/layout/Navbar";
 import Sidebar          from "@/components/layout/Sidebar";
@@ -24,6 +25,7 @@ import MyTasks          from "@/components/my-tasks/MyTasks";
 import QueuePriority    from "@/components/settings/QueuePriority";
 
 export default function Page() {
+  const [unlocked, setUnlocked] = useState(false);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("dashboard");
 
@@ -56,7 +58,8 @@ export default function Page() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (!user) return <LoginScreen onLogin={handleLogin} />;
+  if (!unlocked) return <AccessCodeScreen onSuccess={() => setUnlocked(true)} />;
+  if (!user)     return <LoginScreen onLogin={handleLogin} />;
 
   const currentQueue = queues.find(q => q.id === page);
   const defaultPage  = isManager(user) ? "dashboard" : (queues[0]?.id ?? "dashboard");
