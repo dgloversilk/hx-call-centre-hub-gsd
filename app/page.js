@@ -3,17 +3,16 @@
 /**
  * app/page.js — root page of the GSD Call Centre Hub.
  *
- * Auth: mock user picker (swap for Google OAuth when credentials are ready).
+ * Auth: Google OAuth via NextAuth v5 + Supabase role storage.
  * Data: 4 BigQuery workstream queues (UK, UK Transfers, DE, DE Transfers).
  */
 
-import { useState } from "react";
+import { useState }    from "react";
+import { useSession, signOut } from "next-auth/react";
 
 import { useTaskData }  from "@/lib/useTaskData";
-import { isManager }    from "@/lib/constants";
+import { isManager }    from "@/lib/auth/roles";
 
-import AccessCodeScreen from "@/components/auth/AccessCodeScreen";
-import LoginScreen      from "@/components/auth/LoginScreen";
 import Navbar           from "@/components/layout/Navbar";
 import Sidebar          from "@/components/layout/Sidebar";
 import Dashboard        from "@/components/dashboard/Dashboard";
@@ -25,9 +24,12 @@ import MyTasks          from "@/components/my-tasks/MyTasks";
 import QueuePriority    from "@/components/settings/QueuePriority";
 
 export default function Page() {
-  const [unlocked, setUnlocked] = useState(false);
-  const [user, setUser] = useState(null);
-  const [page, setPage] = useState("dashboard");
+  const { data: session, status } = useSession();
+  const user = session?.user ?? null;
+
+  const [page, setPage] = useState(() =>
+    isManager(user) ? "dashboard" : "my_tasks"
+  );
 
   const {
     queues,
@@ -46,27 +48,22 @@ export default function Page() {
     moveQueue,
   } = useTaskData();
 
-  const handleLogin = (u) => {
-    setUser(u);
-    setPage(isManager(u) ? "dashboard" : "my_tasks");
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setPage("dashboard");
-  };
-
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (!unlocked) return <AccessCodeScreen onSuccess={() => setUnlocked(true)} />;
-  if (!user)     return <LoginScreen onLogin={handleLogin} />;
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-400 text-sm">Loading…</div>
+      </div>
+    );
+  }
 
   const currentQueue = queues.find(q => q.id === page);
   const defaultPage  = isManager(user) ? "dashboard" : (queues[0]?.id ?? "dashboard");
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-      <Navbar user={user} onLogout={handleLogout} queues={queues} taskData={taskData} onPage={setPage} />
+      <Navbar user={user} onLogout={() => signOut({ callbackUrl: "/login" })} queues={queues} taskData={taskData} onPage={setPage} />
 
       <div className="flex flex-1 min-h-0">
         <Sidebar

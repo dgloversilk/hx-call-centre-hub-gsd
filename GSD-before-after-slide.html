@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Before vs After — GSD Slide</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px;
+    }
+
+    .slide {
+      width: 960px;
+      height: 540px;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      padding: 48px 56px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .slide-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: #542E91;
+      margin-bottom: 32px;
+      letter-spacing: -0.02em;
+    }
+
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr;
+      flex: 1;
+      gap: 0;
+      align-items: stretch;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .col-header {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding-bottom: 10px;
+      margin-bottom: 2px;
+    }
+
+    .before .col-header {
+      color: #D9313A;
+      border-bottom: 2px solid #FAE5E6;
+    }
+
+    .after .col-header {
+      color: #347E7A;
+      border-bottom: 2px solid #E5F1F0;
+    }
+
+    .item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #374151;
+    }
+
+    .item .icon {
+      flex-shrink: 0;
+      font-size: 16px;
+      margin-top: 1px;
+    }
+
+    .before .item .icon { color: #D9313A; }
+    .after .item .icon  { color: #347E7A; }
+
+    .item strong {
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .divider-line {
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(180deg, #E5E7EB 0%, #542E91 50%, #E5E7EB 100%);
+      border-radius: 1px;
+      position: relative;
+    }
+
+    .arrow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36px;
+      height: 36px;
+      background: #542E91;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(84,46,145,0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="slide">
+    <div class="slide-title">Before & After</div>
+
+    <div class="columns">
+
+      <div class="col before">
+        <div class="col-header">Today</div>
+        <div class="item">
+          <span class="icon">✕</span>
+          <span><strong>13 separate Google Sheets</strong> — agents open multiple tabs to find work</span>
+        </div>
+        <div class="item">
+          <span class="icon">✕</span>
+          <span><strong>No shared priority</strong> — agents decide what to work on themselves</span>
+        </div>
+        <div class="item">
+          <span class="icon">✕</span>
+          <span><strong>No visibility</strong> — managers can't see who is doing what</span>
+        </div>
+        <div class="item">
+          <span class="icon">✕</span>
+          <span><strong>Manual reporting</strong> — retrospective, no real-time throughput data</span>
+        </div>
+        <div class="item">
+          <span class="icon">✕</span>
+          <span><strong>Work gets duplicated</strong> — no record of what was done or by whom</span>
+        </div>
+      </div>
+
+      <div class="divider">
+        <div class="divider-line">
+          <div class="arrow">→</div>
+        </div>
+      </div>
+
+      <div class="col after">
+        <div class="col-header">With GSD</div>
+        <div class="item">
+          <span class="icon">✓</span>
+          <span><strong>One tool</strong> — all task queues in a single place</span>
+        </div>
+        <div class="item">
+          <span class="icon">✓</span>
+          <span><strong>Prioritised automatically</strong> — agents work top to bottom, no guesswork</span>
+        </div>
+        <div class="item">
+          <span class="icon">✓</span>
+          <span><strong>Real-time visibility</strong> — who's working on what, right now</span>
+        </div>
+        <div class="item">
+          <span class="icon">✓</span>
+          <span><strong>Live reporting</strong> — completions, throughput and team performance</span>
+        </div>
+        <div class="item">
+          <span class="icon">✓</span>
+          <span><strong>Full audit trail</strong> — every action logged, nothing lost</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

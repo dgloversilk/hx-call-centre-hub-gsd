@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GSD — The call centre's missing task management tool</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple:      #542E91;
+      --purple-dark: #47277B;
+      --purple-pale: #EEEAF4;
+      --purple-mid:  #A996C8;
+      --yellow:      #FDD506;
+      --yellow-pale: #FFFBE6;
+      --green:       #347E7A;
+      --green-pale:  #E5F1F0;
+      --red:         #D9313A;
+      --red-pale:    #FAE5E6;
+      --blue:        #2A77B6;
+      --blue-pale:   #E5F0F9;
+      --gray-light:  #F9FAFB;
+      --gray-border: #E5E7EB;
+      --text:        #111827;
+      --text-mid:    #4B5563;
+      --text-light:  #9CA3AF;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+      font-size: 14px;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 56px 48px;
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+    .doc-header {
+      margin-bottom: 40px;
+      padding-bottom: 32px;
+      border-bottom: 3px solid var(--purple);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      background: var(--yellow);
+      color: #5A4000;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .doc-header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: 20px;
+    }
+
+    .doc-header h1 span {
+      color: var(--purple);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 16px;
+      font-size: 13px;
+    }
+
+    .meta-grid .label {
+      font-weight: 600;
+      color: var(--text-mid);
+      white-space: nowrap;
+    }
+
+    .meta-grid .value {
+      color: var(--text-mid);
+    }
+
+    .meta-grid a {
+      color: var(--purple);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .meta-grid a:hover { text-decoration: underline; }
+
+    /* ── Sections ─────────────────────────────────────────── */
+    .section {
+      margin-bottom: 36px;
+    }
+
+    h2 {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--purple-pale);
+    }
+
+    p {
+      color: var(--text-mid);
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Summary bullets ──────────────────────────────────── */
+    .summary-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .summary-list li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 14px;
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+
+    .summary-list li::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--purple);
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+
+    /* ── User cards ───────────────────────────────────────── */
+    .user-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .user-card {
+      padding: 16px;
+      border-radius: 10px;
+      background: var(--gray-light);
+      border: 1px solid var(--gray-border);
+    }
+
+    .user-card .role {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--purple);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-card p {
+      font-size: 12.5px;
+      color: var(--text-mid);
+      margin: 0;
+      line-height: 1.55;
+    }
+
+    /* ── Workflow flow ─────────────────────────────────────── */
+    .workflow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--gray-border);
+    }
+
+    .flow-step {
+      flex: 1;
+      padding: 14px 16px;
+      background: var(--gray-light);
+      position: relative;
+      text-align: center;
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      color: var(--purple-mid);
+      z-index: 1;
+      background: var(--gray-light);
+      padding: 2px;
+    }
+
+    .flow-step .step-num {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--purple-mid);
+      margin-bottom: 4px;
+    }
+
+    .flow-step .step-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .flow-step .step-desc {
+      font-size: 11px;
+      color: var(--text-light);
+      line-height: 1.4;
+    }
+
+    .flow-step:first-child { background: var(--purple-pale); }
+    .flow-step:last-child  { background: var(--green-pale); }
+
+    /* ── Task type pills ──────────────────────────────────── */
+    .task-types {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .task-type {
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid var(--gray-border);
+    }
+
+    .task-type.bigquery {
+      background: var(--purple-pale);
+      border-color: var(--purple-mid);
+    }
+
+    .task-type.csv {
+      background: var(--blue-pale);
+      border-color: #93C5E8;
+    }
+
+    .task-type .tt-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .task-type.bigquery .tt-label { color: var(--purple); }
+    .task-type.csv .tt-label      { color: var(--blue); }
+
+    .task-type p {
+      font-size: 12.5px;
+      margin: 0;
+      line-height: 1.55;
+    }
+
+    /* ── Next steps callout ───────────────────────────────── */
+    .callout {
+      background: var(--yellow-pale);
+      border: 1px solid #F0D800;
+      border-left: 4px solid var(--yellow);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 16px;
+    }
+
+    .callout p {
+      font-size: 13.5px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .callout p:last-child { margin-bottom: 0; }
+
+    .callout strong { color: var(--text); }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    .doc-footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--gray-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .doc-footer span {
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
+    .footer-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--purple);
+    }
+
+    .footer-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--yellow);
+    }
+
+    @media print {
+      body { padding: 32px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <div class="doc-header">
+    <div class="badge">⚡ Discovery / Prototype</div>
+    <h1>The call centre's <span>missing task management tool.</span></h1>
+    <div class="meta-grid">
+      <span class="label">Prepared by</span>
+      <span class="value">Daniel Glover-Silk (DGS)</span>
+
+      <span class="label">Date</span>
+      <span class="value">18 Mar 2026</span>
+
+      <span class="label">Try it</span>
+      <span class="value"><a href="https://hx-call-centre-hub-gsd-auxr.vercel.app/" target="_blank">hx-call-centre-hub-gsd-auxr.vercel.app</a></span>
+    </div>
+  </div>
+
+  <!-- ── Summary ─────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Summary</h2>
+    <ul class="summary-list">
+      <li>Call centre agents handle multiple recurring manual tasks, all living in separate Google Sheets with no shared view of priority or progress.</li>
+      <li>Managers have no real-time visibility of who is working on what, or whether effort is going to the right places.</li>
+      <li>GSD (Get Stuff Done) is a prototype — a single place to see, action and track all tasks that sit outside of Sprinklr.</li>
+    </ul>
+  </div>
+
+  <!-- ── What is it ──────────────────────────────────────── -->
+  <div class="section">
+    <h2>What is it?</h2>
+    <p>GSD was built using Claude AI and is deliberately unfinished. The goal right now is gathering requirements, making changes on the fly and building a clearer picture of how this could genuinely help the team.</p>
+
+    <div class="user-cards">
+      <div class="user-card">
+        <div class="role">🎧 Agents</div>
+        <p>One prioritised task list across all queues, sorted by urgency. No ambiguity about what to work on next.</p>
+      </div>
+      <div class="user-card">
+        <div class="role">📊 Managers</div>
+        <p>Real-time visibility of team workload, queue throughput and the ability to set priorities.</p>
+      </div>
+      <div class="user-card">
+        <div class="role">🏢 The Business</div>
+        <p>A consolidated place to understand task volume, input data and track outcomes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── How would it work ───────────────────────────────── -->
+  <div class="section">
+    <h2>How would it work?</h2>
+    <p>Most recurring call centre tasks are already defined in SQL and run via BigQuery — the data exists, it's just not surfaced anywhere actionable. Ad-hoc tasks can be handled through CSV imports, spinning up a new queue in seconds with no engineering work required.</p>
+
+    <div class="workflow">
+      <div class="flow-step">
+        <div class="step-num">01</div>
+        <div class="step-title">BigQuery runs</div>
+        <div class="step-desc">SQL query runs on schedule — daily, hourly or triggered</div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">02</div>
+        <div class="step-title">GSD creates tasks</div>
+        <div class="step-desc">Queue populates automatically, no file upload needed</div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">03</div>
+        <div class="step-title">Agents action</div>
+        <div class="step-desc">Tasks worked and statuses updated directly in the tool</div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">04</div>
+        <div class="step-title">Logs back to BQ</div>
+        <div class="step-desc">Completions write back — single source of truth for reporting</div>
+      </div>
+    </div>
+
+    <div class="task-types">
+      <div class="task-type bigquery">
+        <div class="tt-label">🔄 Regular tasks — BigQuery</div>
+        <p>Recurring queues built from existing SQL queries. Run on a schedule, no manual input. The Google Sheets disappear entirely.</p>
+      </div>
+      <div class="task-type csv">
+        <div class="tt-label">📁 Ad-hoc tasks — CSV import</div>
+        <p>HARP files, one-off exports — upload, map columns, queue is live instantly. If it proves valuable, it becomes a BigQuery feed.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── What's next ─────────────────────────────────────── -->
+  <div class="section">
+    <h2>What's next?</h2>
+    <p>This is an idea with working foundations. To make it a real option I need honest, blue-sky feedback from as many people as possible — what you'd actually need it to do, and what would need to be true for it to be useful.</p>
+
+    <div class="callout">
+      <p><strong>There is a session with some of the call centre managers next week</strong> where I'll be collating requirements. If you have thoughts before then, please share.</p>
+      <p>From there, I'll iterate. If we can get to a point where one task type is being actively handled inside the tool end-to-end, we build from there.</p>
+    </div>
+  </div>
+
+  <!-- ── Footer ──────────────────────────────────────────── -->
+  <div class="doc-footer">
+    <span>Holiday Extras Internal · Not for external distribution</span>
+    <div class="footer-badge">
+      <div class="dot"></div>
+      GSD — Get Stuff Done
+    </div>
+  </div>
+
+</body>
+</html>

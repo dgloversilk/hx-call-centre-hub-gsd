@@ -1,6 +1,7 @@
 "use client";
 
-// Simplified provider wrapper — no next-auth session needed for demo mode.
+import { SessionProvider } from "next-auth/react";
+
 export default function Providers({ children }) {
-  return <>{children}</>;
+  return <SessionProvider>{children}</SessionProvider>;
 }
