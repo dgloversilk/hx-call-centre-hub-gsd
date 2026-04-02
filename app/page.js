@@ -23,6 +23,7 @@ import UploadPage       from "@/components/upload/UploadPage";
 import GlobalArchiveView from "@/components/archive/GlobalArchiveView";
 import MyTasks          from "@/components/my-tasks/MyTasks";
 import QueuePriority    from "@/components/settings/QueuePriority";
+import TeamSettings     from "@/components/settings/TeamSettings";
 
 export default function Page() {
   const { data: session, status } = useSession();
@@ -123,6 +124,10 @@ export default function Page() {
             <div className="flex-1 overflow-y-auto p-6">
               <QueuePriority queues={queues} taskData={taskData} onReorder={reorderQueue} onMove={moveQueue} />
             </div>
+          )}
+
+          {page === "team" && isManager(user) && (
+            <TeamSettings currentUser={user} />
           )}
 
           {page === "archive" && (
