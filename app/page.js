@@ -7,8 +7,9 @@
  * Data: 4 BigQuery workstream queues (UK, UK Transfers, DE, DE Transfers).
  */
 
-import { useState }    from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 import { useTaskData }  from "@/lib/useTaskData";
 import { isManager }    from "@/lib/auth/roles";
@@ -26,10 +27,14 @@ import QueuePriority    from "@/components/settings/QueuePriority";
 export default function Page() {
   const { data: session, status } = useSession();
   const user = session?.user ?? null;
+  const router = useRouter();
 
-  const [page, setPage] = useState(() =>
-    isManager(user) ? "dashboard" : "my_tasks"
-  );
+  const [page, setPage] = useState("my_tasks");
+
+  useEffect(() => {
+    if (status === "unauthenticated") router.replace("/login");
+    if (status === "authenticated") setPage(isManager(user) ? "dashboard" : "my_tasks");
+  }, [status]);
 
   const {
     queues,

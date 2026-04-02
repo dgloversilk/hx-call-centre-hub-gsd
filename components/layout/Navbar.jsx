@@ -132,14 +132,14 @@ export default function Navbar({ user, onLogout, queues = [], taskData = {}, onP
       {/* User */}
       <div className="flex items-center gap-3 flex-shrink-0">
         <div className="text-right hidden sm:block">
-          <div className="text-sm font-medium">{user.name}</div>
-          <div className="text-xs capitalize" style={{ color: HX.purpleLight }}>{user.role}</div>
+          <div className="text-sm font-medium">{user?.name ?? "—"}</div>
+          <div className="text-xs capitalize" style={{ color: HX.purpleLight }}>{user?.role ?? "—"}</div>
         </div>
         <div
           className="w-9 h-9 rounded-full border-2 flex items-center justify-center font-bold text-sm"
           style={{ background: HX.purpleDark, borderColor: HX.purpleLight }}
         >
-          {user.initials}
+          {user?.initials ?? user?.name?.[0] ?? "?"}
         </div>
         <button
           onClick={onLogout}
