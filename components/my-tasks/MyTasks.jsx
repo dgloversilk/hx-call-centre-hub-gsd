@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback, useRef } from "react";
 import { HX } from "@/lib/brand";
 import { STATUS_CFG, isManager, MOCK_USERS } from "@/lib/constants";
+import TakeTasks from "@/components/my-tasks/TakeTasks";
 import TaskDetailPanel from "@/components/queue/TaskDetailPanel";
 import NotesPanel from "@/components/queue/NotesPanel";
 
@@ -627,6 +628,9 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask, onNaviga
 
   return (
     <div className="flex flex-col h-full min-h-0">
+
+      {/* ── Take Tasks ─────────────────────────────────────────────────────── */}
+      <TakeTasks queues={queues} taskData={taskData} user={user} onUpdateTask={onUpdateTask} />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 mb-4">
