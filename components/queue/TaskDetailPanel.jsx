@@ -208,8 +208,9 @@ export default function TaskDetailPanel({ task, queue, onClose, onOpenNotes, onU
           </div>
           <div className="flex items-center gap-1 ml-3 mt-0.5">
             {onToggleExpand && (
-              <button onClick={onToggleExpand} className="text-sm leading-none text-gray-400 hover:text-gray-600 transition-colors p-1" title={expanded ? "Collapse" : "Expand"}>
-                {expanded ? "⊟" : "⊞"}
+              <button onClick={onToggleExpand} className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors mr-1" title="Open fullscreen"
+                style={{ background: HX.bluePale, color: HX.blue }}>
+                ⛶ Full screen
               </button>
             )}
             <button onClick={onClose} className="text-lg leading-none text-gray-400 hover:text-gray-600 transition-colors p-1">✕</button>

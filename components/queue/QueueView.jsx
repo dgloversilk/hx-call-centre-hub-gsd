@@ -6,7 +6,8 @@ import { OUTCOME_OPTIONS, MOCK_USERS, isManager } from "@/lib/constants";
 import TaskTable      from "./TaskTable";
 import NotesPanel     from "./NotesPanel";
 import AnalysisPanel  from "./AnalysisPanel";
-import TaskDetailPanel from "./TaskDetailPanel";
+import TaskDetailPanel  from "./TaskDetailPanel";
+import TaskFullscreen   from "./TaskFullscreen";
 
 const TABS = [
   { id: "work",     label: "🗂 Work Queue" },
@@ -352,11 +353,35 @@ export default function QueueView({
         </div>
       )}
 
+      {/* Fullscreen task overlay */}
+      {panelExpanded && detailTask && tab === "work" && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(15,23,42,0.65)", backdropFilter: "blur(3px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setDetailTaskId(null); setPanelExpanded(false); } }}
+        >
+          <div
+            className="w-full rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            style={{ maxWidth: 900, maxHeight: "92vh", margin: "0 24px", background: "white" }}
+          >
+            <TaskFullscreen
+              task={detailTask}
+              queue={queue}
+              user={user}
+              tasks={filtered}
+              onClose={() => { setDetailTaskId(null); setPanelExpanded(false); }}
+              onUpdateTask={(taskId, updates) => updateOne(taskId, updates)}
+              onNavigate={(id) => setDetailTaskId(id)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Main content + optional detail panel */}
       <div className="flex flex-1 min-h-0">
 
-        {/* Left content — hidden when panel is expanded */}
-        {!(panelExpanded && detailTask && tab === "work") && (<>
+        {/* Left content — always visible (fullscreen handled above as overlay) */}
+        {(<>
           {tab === "work" && isLoading && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400">
               <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
@@ -420,7 +445,7 @@ export default function QueueView({
           )}
         </>)}
 
-        {detailTask && tab === "work" && (
+        {detailTask && tab === "work" && !panelExpanded && (
           <TaskDetailPanel
             task={detailTask}
             queue={queue}
@@ -428,8 +453,8 @@ export default function QueueView({
             onClose={() => { setDetailTaskId(null); setPanelExpanded(false); }}
             onOpenNotes={(t) => setNotesTask(t)}
             onUpdateTask={(taskId, updates) => updateOne(taskId, updates)}
-            expanded={panelExpanded}
-            onToggleExpand={() => setPanelExpanded(e => !e)}
+            expanded={false}
+            onToggleExpand={() => setPanelExpanded(true)}
           />
         )}
       </div>
