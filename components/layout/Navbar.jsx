@@ -8,7 +8,6 @@ export default function Navbar({ user, onLogout, queues = [], taskData = {}, onP
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     function handler(e) {
       if (searchRef.current && !searchRef.current.contains(e.target)) setShowResults(false);
@@ -17,7 +16,6 @@ export default function Navbar({ user, onLogout, queues = [], taskData = {}, onP
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Search across all queues for chips_reference match
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -51,19 +49,19 @@ export default function Navbar({ user, onLogout, queues = [], taskData = {}, onP
   return (
     <div
       className="text-white px-6 py-3 flex items-center justify-between shadow-lg flex-shrink-0 z-20"
-      style={{ background: HX.purple }}
+      style={{ background: HX.slate800, borderBottom: `1px solid ${HX.slate700}` }}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 flex-shrink-0">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-          style={{ background: "rgba(255,255,255,0.2)" }}
+          style={{ background: HX.blue, color: "white" }}
         >
           HX
         </div>
         <div>
-          <span className="font-semibold">GSD</span>
-          <span className="text-xs ml-3 hidden sm:inline" style={{ color: HX.purpleLight }}>
+          <span className="font-semibold tracking-tight">GSD</span>
+          <span className="text-xs ml-3 hidden sm:inline" style={{ color: HX.slate400 }}>
             Get Stuff Done
           </span>
         </div>
@@ -72,19 +70,18 @@ export default function Navbar({ user, onLogout, queues = [], taskData = {}, onP
       {/* Search */}
       <div className="flex-1 max-w-md mx-8 relative" ref={searchRef}>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm opacity-60">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm opacity-50">🔍</span>
           <input
             type="text"
             value={query}
             onChange={e => { setQuery(e.target.value); setShowResults(true); }}
             onFocus={() => setShowResults(true)}
             placeholder="Search chips reference…"
-            className="w-full pl-8 pr-4 py-1.5 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2"
-            style={{ background: "rgba(255,255,255,0.15)", color: "white", "::placeholder": { color: HX.purpleLight } }}
+            className="w-full pl-8 pr-4 py-1.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            style={{ background: HX.slate700, color: "white", border: `1px solid ${HX.slate600}` }}
           />
         </div>
 
-        {/* Results dropdown */}
         {showResults && query.trim().length >= 2 && (
           <div
             className="absolute top-10 left-0 right-0 rounded-xl border border-gray-200 shadow-2xl overflow-hidden z-50"
@@ -133,18 +130,18 @@ export default function Navbar({ user, onLogout, queues = [], taskData = {}, onP
       <div className="flex items-center gap-3 flex-shrink-0">
         <div className="text-right hidden sm:block">
           <div className="text-sm font-medium">{user?.name ?? "—"}</div>
-          <div className="text-xs capitalize" style={{ color: HX.purpleLight }}>{user?.role ?? "—"}</div>
+          <div className="text-xs capitalize" style={{ color: HX.slate400 }}>{user?.role ?? "—"}</div>
         </div>
         <div
-          className="w-9 h-9 rounded-full border-2 flex items-center justify-center font-bold text-sm"
-          style={{ background: HX.purpleDark, borderColor: HX.purpleLight }}
+          className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm"
+          style={{ background: HX.blue, color: "white" }}
         >
           {user?.initials ?? user?.name?.[0] ?? "?"}
         </div>
         <button
           onClick={onLogout}
-          className="text-xs underline hover:opacity-80"
-          style={{ color: HX.purpleLight }}
+          className="text-xs hover:opacity-80 transition-opacity"
+          style={{ color: HX.slate400 }}
         >
           Sign out
         </button>

@@ -1,12 +1,5 @@
 "use client";
 
-/**
- * app/page.js — root page of the GSD Call Centre Hub.
- *
- * Auth: Google OAuth via NextAuth v5 + Supabase role storage.
- * Data: 4 BigQuery workstream queues (UK, UK Transfers, DE, DE Transfers).
- */
-
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -14,16 +7,18 @@ import { useRouter } from "next/navigation";
 import { useTaskData }  from "@/lib/useTaskData";
 import { isManager }    from "@/lib/auth/roles";
 
-import Navbar           from "@/components/layout/Navbar";
-import Sidebar          from "@/components/layout/Sidebar";
-import Dashboard        from "@/components/dashboard/Dashboard";
-import DailySummary     from "@/components/summary/DailySummary";
-import QueueView        from "@/components/queue/QueueView";
-import UploadPage       from "@/components/upload/UploadPage";
-import GlobalArchiveView from "@/components/archive/GlobalArchiveView";
-import MyTasks          from "@/components/my-tasks/MyTasks";
-import QueuePriority    from "@/components/settings/QueuePriority";
-import TeamSettings     from "@/components/settings/TeamSettings";
+import Navbar              from "@/components/layout/Navbar";
+import Sidebar             from "@/components/layout/Sidebar";
+import Dashboard           from "@/components/dashboard/Dashboard";
+import DailySummary        from "@/components/summary/DailySummary";
+import QueueView           from "@/components/queue/QueueView";
+import UploadPage          from "@/components/upload/UploadPage";
+import GlobalArchiveView   from "@/components/archive/GlobalArchiveView";
+import MyTasks             from "@/components/my-tasks/MyTasks";
+import QueuePriority       from "@/components/settings/QueuePriority";
+import TeamSettings        from "@/components/settings/TeamSettings";
+import KnowledgeBase       from "@/components/knowledge/KnowledgeBase";
+import KnowledgeAssistant  from "@/components/knowledge/KnowledgeAssistant";
 
 export default function Page() {
   const { data: session, status } = useSession();
@@ -54,11 +49,9 @@ export default function Page() {
     moveQueue,
   } = useTaskData();
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F1F5F9" }}>
         <div className="text-gray-400 text-sm">Loading…</div>
       </div>
     );
@@ -68,7 +61,7 @@ export default function Page() {
   const defaultPage  = isManager(user) ? "dashboard" : (queues[0]?.id ?? "dashboard");
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden" style={{ background: "#F1F5F9" }}>
       <Navbar user={user} onLogout={() => signOut({ callbackUrl: "/login" })} queues={queues} taskData={taskData} onPage={setPage} />
 
       <div className="flex flex-1 min-h-0">
@@ -138,6 +131,10 @@ export default function Page() {
             />
           )}
 
+          {page === "knowledge" && (
+            <KnowledgeBase user={user} />
+          )}
+
           {currentQueue && (
             <QueueView
               queue={currentQueue}
@@ -156,6 +153,9 @@ export default function Page() {
 
         </main>
       </div>
+
+      {/* Floating AI assistant — available on all pages */}
+      <KnowledgeAssistant />
     </div>
   );
 }
