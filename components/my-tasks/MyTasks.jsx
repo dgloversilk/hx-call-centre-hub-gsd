@@ -118,6 +118,23 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask }) {
     return null;
   }, [fullscreenId, queues, taskData]);
 
+  // When a task is selected, render it fullscreen in the content area (no overlay, sidebar stays accessible)
+  if (fullscreenItem) {
+    return (
+      <div className="h-full min-h-0 overflow-hidden">
+        <TaskFullscreen
+          task={fullscreenItem.task}
+          queue={fullscreenItem.queue}
+          user={user}
+          tasks={filteredTasks.map(i => i.task)}
+          onClose={() => setFullscreenId(null)}
+          onUpdateTask={(taskId, updates) => updateTask(fullscreenItem.queue.id, taskId, updates)}
+          onNavigate={(id) => setFullscreenId(id)}
+        />
+      </div>
+    );
+  }
+
   if (!allTasks.length && doneToday === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-80 text-center">
@@ -218,30 +235,6 @@ export default function MyTasks({ queues, taskData, user, onUpdateTask }) {
           </table>
         )}
       </div>
-
-      {/* ── Fullscreen overlay ─────────────────────────────────────────────── */}
-      {fullscreenItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(15,23,42,0.65)", backdropFilter: "blur(3px)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setFullscreenId(null); }}
-        >
-          <div
-            className="w-full rounded-2xl shadow-2xl overflow-hidden"
-            style={{ maxWidth: 900, margin: "0 24px", background: "white" }}
-          >
-            <TaskFullscreen
-              task={fullscreenItem.task}
-              queue={fullscreenItem.queue}
-              user={user}
-              tasks={filteredTasks.map(i => i.task)}
-              onClose={() => setFullscreenId(null)}
-              onUpdateTask={(taskId, updates) => updateTask(fullscreenItem.queue.id, taskId, updates)}
-              onNavigate={(id) => setFullscreenId(id)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
