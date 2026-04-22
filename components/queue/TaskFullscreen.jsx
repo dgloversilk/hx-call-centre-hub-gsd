@@ -2,11 +2,41 @@
 
 import { useState, useEffect } from "react";
 import { HX } from "@/lib/brand";
-import { STATUS_CFG, OUTCOME_OPTIONS, MOCK_USERS, isManager } from "@/lib/constants";
+import { STATUS_CFG, isManager } from "@/lib/constants";
+
+// Fields that are managed by the system — never shown as data fields
+const SYSTEM_KEYS = new Set([
+  "_id", "status", "notes", "archived", "archived_at", "archived_by",
+  "assigned_to", "assigned_by", "assigned_at",
+  "completed_by", "completed_at", "completion_outcome",
+  "status_updated_at", "status_updated_by",
+]);
+
+// snake_case → Title Case label
+function toLabel(key) {
+  return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Get ordered list of {key, label, value} for a task, using displayCols first then extras
+function getDataFields(task, queue) {
+  const displayCols = queue?.displayCols ?? [];
+  const allKeys = Object.keys(task).filter(k => !SYSTEM_KEYS.has(k));
+  const ordered = [
+    ...displayCols.filter(k => k in task),
+    ...allKeys.filter(k => !displayCols.includes(k)),
+  ];
+  return ordered.map(k => ({ key: k, label: toLabel(k), value: task[k] }))
+    .filter(f => f.value !== null && f.value !== undefined && f.value !== "");
+}
+
+// Colours for Yes/No flag values
+const FLAG_YES = { background: "#FEF2F2", color: "#991B1B", border: "1px solid #FCA5A5" };
+const FLAG_NO  = { background: "#ECFDF5", color: "#065F46", border: "1px solid #6EE7B7" };
 
 function Field({ label, value, mono = false, date = false }) {
-  if (!value && value !== 0) return null;
+  if (value === null || value === undefined || value === "") return null;
   let display = String(value);
+  const isFlag = display === "Yes" || display === "No";
   if (date) {
     try { display = new Date(value).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
     catch { /* keep raw */ }
@@ -14,9 +44,16 @@ function Field({ label, value, mono = false, date = false }) {
   return (
     <div className="min-w-0">
       <div className="text-xs mb-0.5" style={{ color: HX.slate400 }}>{label}</div>
-      <div className={`text-sm text-gray-900 truncate ${mono ? "font-mono font-semibold" : "font-medium"}`} title={display}>
-        {display}
-      </div>
+      {isFlag ? (
+        <span className="text-xs px-2 py-0.5 rounded-full font-semibold border inline-block"
+          style={display === "Yes" ? FLAG_YES : FLAG_NO}>
+          {display}
+        </span>
+      ) : (
+        <div className={`text-sm text-gray-900 truncate ${mono ? "font-mono font-semibold" : "font-medium"}`} title={display}>
+          {display}
+        </div>
+      )}
     </div>
   );
 }
@@ -92,7 +129,6 @@ export default function TaskFullscreen({ task, queue, user, onClose, onUpdateTas
   const markStart = () => update({ status: "in_progress" });
   const markBlock = () => update({ status: "blocked" });
   const markPend  = () => update({ status: "pending" });
-  const delegate  = (name) => update({ assigned_to: name, assigned_by: user?.name, assigned_at: new Date().toISOString() });
   const saveNotes = () => update({ notes });
 
   const nav = (dir) => {
@@ -104,24 +140,33 @@ export default function TaskFullscreen({ task, queue, user, onClose, onUpdateTas
 
   const active    = tasks.filter(t => !t.archived);
   const taskIdx   = active.findIndex(t => t._id === task._id);
-  const cfg       = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
-  const agentList = MOCK_USERS.filter(u => u.name !== user?.name);
-  const isBQ      = queue?.source === "bigquery";
+  const cfg  = STATUS_CFG[task.status] ?? STATUS_CFG.pending;
+  const isBQ = queue?.source === "bigquery";
   const headerRef = isBQ ? (task.chips_reference ?? task._id) : (task[queue?.primaryKey] ?? task._id);
 
   const canAct = !isDone && (unassigned || myTask || manager);
+
+  // Build ordered list of all data fields for this task/queue
+  const dataFields = getDataFields(task, queue);
+  // Split: first half in col 1, rest in col 2
+  const half = Math.ceil(dataFields.length / 2);
+  const col1Fields = dataFields.slice(0, half);
+  const col2Fields = dataFields.slice(half);
+
+  // Detect monospace fields by convention
+  const monoKeys = new Set(["chips_reference", "code", "queue_id", "error_code", "log_action", "action", "ref_count"]);
+  const dateKeys = new Set(["error_time", "booking_date", "stay_date", "start_date", "assigned_at", "completed_at"]);
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-white">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ background: HX.slate800, borderBottom: `1px solid ${HX.slate700}` }}>
+      <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
+        style={{ background: HX.slate800, borderBottom: `1px solid ${HX.slate700}` }}>
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={onClose}
+          <button onClick={onClose}
             className="flex items-center gap-1.5 text-xs font-medium mr-1 transition-opacity hover:opacity-70 flex-shrink-0"
-            style={{ color: HX.slate400 }}
-          >
+            style={{ color: HX.slate400 }}>
             ← Back
           </button>
           <span className="text-base flex-shrink-0">{queue?.icon}</span>
@@ -131,7 +176,8 @@ export default function TaskFullscreen({ task, queue, user, onClose, onUpdateTas
             {cfg.label}
           </span>
           {task.country && (
-            <span className="text-sm px-2.5 py-1 rounded flex-shrink-0" style={{ background: HX.slate700, color: HX.slate300 }}>
+            <span className="text-sm px-2.5 py-1 rounded flex-shrink-0"
+              style={{ background: HX.slate700, color: HX.slate300 }}>
               {task.country === "DE" ? "🇩🇪 DE" : "🇬🇧 UK"}
             </span>
           )}
@@ -152,7 +198,9 @@ export default function TaskFullscreen({ task, queue, user, onClose, onUpdateTas
             ←
           </button>
           <div className="text-center">
-            <div className="text-white font-bold text-lg leading-none">{taskIdx + 1}<span style={{ color: HX.slate500 }}>/</span>{active.length}</div>
+            <div className="text-white font-bold text-lg leading-none">
+              {taskIdx + 1}<span style={{ color: HX.slate500 }}>/</span>{active.length}
+            </div>
             <div className="text-xs mt-0.5" style={{ color: HX.slate400 }}>tasks</div>
           </div>
           <button onClick={() => nav(1)} disabled={taskIdx >= active.length - 1}
@@ -168,37 +216,37 @@ export default function TaskFullscreen({ task, queue, user, onClose, onUpdateTas
       {/* ── 3-column body ──────────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 divide-x overflow-hidden" style={{ borderColor: HX.gray2 }}>
 
-        {/* Col 1 — Error details */}
-        <div className="flex flex-col overflow-y-auto" style={{ width: 280, flexShrink: 0 }}>
+        {/* Col 1 — first half of task fields */}
+        <div className="flex flex-col overflow-y-auto" style={{ width: 320, flexShrink: 0 }}>
           <div className="px-4 py-2.5 border-b text-xs font-bold uppercase tracking-widest flex-shrink-0"
-            style={{ color: HX.red, background: HX.redPale, borderColor: HX.gray2 }}>
-            ⚠️ Error
+            style={{ color: HX.blue, background: HX.bluePale, borderColor: HX.gray2 }}>
+            📋 {queue?.name ?? "Task"} Details
           </div>
           <div className="p-4 space-y-4">
-            <Field label="Type"    value={task.error_type} />
-            <Field label="Code"    value={task.error_code}    mono />
-            <Field label="Message" value={task.error_message} />
-            <Field label="Info"    value={task.error_info} />
-            <Field label="Action"  value={task.log_action ?? task.action} mono />
-            <Field label="Time"    value={task.error_time} date />
+            {col1Fields.map(({ key, label, value }) => (
+              <Field key={key} label={label} value={value}
+                mono={monoKeys.has(key)} date={dateKeys.has(key)} />
+            ))}
+            {col1Fields.length === 0 && (
+              <p className="text-sm text-gray-400 italic">No fields</p>
+            )}
           </div>
         </div>
 
-        {/* Col 2 — Booking & Supplier */}
+        {/* Col 2 — second half of task fields + custom fields */}
         <div className="flex flex-col flex-1 min-w-0 overflow-y-auto">
           <div className="px-4 py-2.5 border-b text-xs font-bold uppercase tracking-widest flex-shrink-0"
-            style={{ color: HX.blue, background: HX.bluePale, borderColor: HX.gray2 }}>
-            📋 Booking & Supplier
+            style={{ color: HX.slate500, background: HX.gray4, borderColor: HX.gray2 }}>
+            🗂 Additional Information
           </div>
           <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4">
-            <Field label="Chips Reference" value={task.chips_reference}   mono />
-            <Field label="Platform"        value={task.booking_platform} />
-            <Field label="Country"         value={task.country} />
-            <Field label="Start Date"      value={task.start_date} />
-            <Field label="Supplier"        value={task.supplier ?? task.error_supplier} />
-            <Field label="Product Code"    value={task.code}              mono />
-            <Field label="Product Type"    value={task.product_type} />
-            <Field label="Queue ID"        value={task.queue_id}          mono />
+            {col2Fields.map(({ key, label, value }) => (
+              <Field key={key} label={label} value={value}
+                mono={monoKeys.has(key)} date={dateKeys.has(key)} />
+            ))}
+            {col2Fields.length === 0 && (
+              <p className="text-sm text-gray-400 italic col-span-2">No additional fields</p>
+            )}
           </div>
 
           {(queue?.customFields ?? []).length > 0 && (
@@ -218,9 +266,8 @@ export default function TaskFullscreen({ task, queue, user, onClose, onUpdateTas
         </div>
 
         {/* Col 3 — Actions + Notes */}
-        <div className="flex flex-col overflow-hidden" style={{ width: 280, flexShrink: 0 }}>
+        <div className="flex flex-col overflow-hidden" style={{ width: 260, flexShrink: 0 }}>
 
-          {/* Actions */}
           <div className="px-4 py-2.5 border-b text-xs font-bold uppercase tracking-widest flex-shrink-0"
             style={{ color: "#6B7280", background: HX.gray4, borderColor: HX.gray2 }}>
             Actions
@@ -291,26 +338,6 @@ export default function TaskFullscreen({ task, queue, user, onClose, onUpdateTas
                 </button>
               )}
             </>)}
-
-            {/* Delegate — agent list as direct buttons, no dropdown */}
-            {manager && agentList.length > 0 && (
-              <div>
-                <div className="text-xs font-semibold mb-2 mt-1" style={{ color: HX.slate400 }}>DELEGATE TO</div>
-                <div className="space-y-1">
-                  {agentList.map(u => (
-                    <button key={u.id} onClick={() => delegate(u.name)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors border"
-                      style={{ borderColor: HX.gray2, background: "white", color: "#374151" }}
-                      onMouseEnter={e => { e.currentTarget.style.background = HX.gray3; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "white"; }}>
-                      <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center text-white flex-shrink-0"
-                        style={{ background: HX.blue }}>{u.initials}</span>
-                      {u.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Notes */}
